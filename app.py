@@ -460,6 +460,7 @@ def classroom_view(classroom_id):
     
     projects = Project.query.filter_by(classroom_id=classroom_id).order_by(Project.created_at.desc()).all()
     challenges = Challenge.query.filter_by(classroom_id=classroom_id).all()
+    subjects = Subject.query.filter_by(classroom_id=classroom_id).all()
     
     # Get leaderboard
     enrollments = ClassroomStudent.query.filter_by(classroom_id=classroom_id).order_by(ClassroomStudent.points.desc()).limit(10).all()
@@ -468,7 +469,7 @@ def classroom_view(classroom_id):
         student = User.query.get(e.student_id)
         leaderboard.append({'username': student.username, 'points': e.points})
     
-    return render_template('classroom.html', classroom=classroom, projects=projects, challenges=challenges, leaderboard=leaderboard)
+    return render_template('classroom.html', classroom=classroom, projects=projects, challenges=challenges, subjects=subjects, leaderboard=leaderboard)
 
 @app.route('/project/upload', methods=['GET', 'POST'])
 @login_required
