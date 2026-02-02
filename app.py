@@ -1019,6 +1019,148 @@ def admin_edit_user(user_id):
     
     return render_template('admin_edit_user.html', user=user)
 
+# Subject management routes
+@app.route('/admin/classroom/<int:classroom_id>/add-subject', methods=['GET', 'POST'])
+@admin_required
+def add_subject(classroom_id):
+    classroom = Classroom.query.get_or_404(classroom_id)
+    
+    if request.method == 'POST':
+        name = request.form.get('name')
+        teacher_id = request.form.get('teacher_id')
+        
+        if not name or not teacher_id:
+            flash('Subject name and teacher are required')
+            return redirect(url_for('add_subject', classroom_id=classroom_id))
+        
+        teacher = User.query.get(teacher_id)
+        if not teacher or teacher.role != 'teacher':
+            flash('Invalid teacher selected')
+            return redirect(url_for('add_subject', classroom_id=classroom_id))
+        
+        subject = Subject(name=name, classroom_id=classroom_id, teacher_id=teacher_id)
+        db.session.add(subject)
+        db.session.commit()
+        flash(f'Subject "{name}" added successfully!')
+        return redirect(url_for('classroom_view', classroom_id=classroom_id))
+    
+    teachers = User.query.filter_by(role='teacher').all()
+    return render_template('add_subject.html', classroom=classroom, teachers=teachers)
+
+# Assignment routes
+@app.route('/subject/<int:subject_id>/create-assignment', methods=['GET', 'POST'])
+@teacher_required
+def create_assignment(subject_id):
+    subject = Subject.query.get_or_404(subject_id)
+    
+    # Check if teacher has access
+    if current_user.role != 'admin' and subject.teacher_id != current_user.id:
+        flash('You do not have permission to create assignments for this subject')
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        title = request.form.get('title')
+        description = request.form.get('description')
+        deadline_str = request.form.get('deadline')
+        
+        if not title or not deadline_str:
+            flash('Title and deadline are required')
+            return redirect(url_for('create_assignment', subject_id=subject_id))
+        
+        try:
+            deadline = datetime.strptime(deadline_str, '%Y-%m-%dT%H:%M')
+        except ValueError:
+            flash('Invalid deadline format')
+            return redirect(url_for('create_assignment', subject_id=subject_id))
+        
+        assignment = Assignment(
+            title=title,
+            description=description,
+            subject_id=subject_id,
+            teacher_id=current_user.id,
+            deadline=deadline
+        )
+        db.session.add(assignment)
+        db.session.commit()
+        flash('Assignment created successfully!')
+        return redirect(url_for('view_subject', subject_id=subject_id))
+    
+    return render_template('create_assignment.html', subject=subject)
+
+@app.route('/subject/<int:subject_id>')
+@login_required
+def view_subject(subject_id):
+    subject = Subject.query.get_or_404(subject_id)
+    
+    # Check access
+    if current_user.role == 'student':
+        enrollment = ClassroomStudent.query.filter_by(
+            classroom_id=subject.classroom_id,
+            student_id=current_user.id
+        ).first()
+        if not enrollment:
+            flash('You are not enrolled in this classroom')
+            return redirect(url_for('dashboard'))
+    elif current_user.role not in ['teacher', 'admin']:
+        flash('Access denied')
+        return redirect(url_for('dashboard'))
+    
+    assignments = Assignment.query.filter_by(subject_id=subject_id).order_by(Assignment.deadline).all()
+    from datetime import datetime as dt
+    return render_template('view_subject.html', subject=subject, assignments=assignments, datetime=dt)
+
+@app.route('/assignment/<int:assignment_id>')
+@login_required
+def view_assignment(assignment_id):
+    assignment = Assignment.query.get_or_404(assignment_id)
+    subject = assignment.subject
+    
+    # Check access
+    if current_user.role == 'student':
+        enrollment = ClassroomStudent.query.filter_by(
+            classroom_id=subject.classroom_id,
+            student_id=current_user.id
+        ).first()
+        if not enrollment:
+            flash('You are not enrolled in this classroom')
+            return redirect(url_for('dashboard'))
+    elif current_user.role not in ['teacher', 'admin']:
+        if subject.teacher_id != current_user.id and current_user.role != 'admin':
+            flash('Access denied')
+            return redirect(url_for('dashboard'))
+    
+    # Get submissions
+    submissions = Project.query.filter_by(assignment_id=assignment_id).all()
+    
+    # Calculate late status for each submission
+    submission_data = []
+    for submission in submissions:
+        late_time = None
+        if submission.submitted_at:
+            late_time = calculate_late_time(assignment.deadline, submission.submitted_at)
+        submission_data.append({
+            'project': submission,
+            'late_time': late_time,
+            'is_late': submission.submitted_at and submission.submitted_at > assignment.deadline
+        })
+    
+    # Check if current student has submitted
+    student_submission = None
+    if current_user.role == 'student':
+        student_submission = Project.query.filter_by(
+            assignment_id=assignment_id,
+            student_id=current_user.id
+        ).first()
+    
+    from datetime import datetime as dt
+    return render_template('view_assignment.html', 
+                        assignment=assignment, 
+                        subject=subject,
+                        submissions=submission_data,
+                        student_submission=student_submission,
+                        calculate_late_time=calculate_late_time,
+                        datetime=dt)
+
 # Project permissions and settings
 @app.route('/project/<int:project_id>/settings', methods=['GET', 'POST'])
 @login_required
