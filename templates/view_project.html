@@ -11,7 +11,15 @@
                 <span>By {{ project.student.username }}</span>
                 <span>{{ project.project_type|upper }}</span>
                 <span>{{ project.created_at.strftime('%B %d, %Y') }}</span>
+                {% if project.tagged_teacher %}
+                    <span>Tagged: {{ project.tagged_teacher.username }}</span>
+                {% endif %}
             </div>
+            {% if project.screenshot_path %}
+                <div class="project-screenshot">
+                    <img src="{{ url_for('static', filename='screenshots/' + project.screenshot_path) }}" alt="Project screenshot" class="screenshot-preview">
+                </div>
+            {% endif %}
             {% if project.description %}
                 <p class="project-description-full">{{ project.description }}</p>
             {% endif %}
@@ -31,6 +39,9 @@
                 <form method="POST" action="{{ url_for('like_project', project_id=project.id) }}" style="display: inline;">
                     <button type="submit" class="btn btn-primary">Like Project</button>
                 </form>
+                {% if project.student_id == current_user.id or current_user.role == 'admin' %}
+                    <a href="{{ url_for('project_settings', project_id=project.id) }}" class="btn btn-secondary">Settings</a>
+                {% endif %}
                 <a href="{{ url_for('classroom_view', classroom_id=project.classroom_id) }}" class="btn btn-secondary">Back to Classroom</a>
             </div>
         </div>
@@ -44,11 +55,18 @@
                             <ul class="file-tree">
                                 {% for file in project_files %}
                                     <li class="file-item {% if file.is_html %}html-file{% endif %}">
-                                        <a href="{{ url_for('project_file', project_id=project.id, file_path=file.path) }}" 
-                                           target="_blank" 
-                                           {% if file.path == project.main_file %}class="main-file"{% endif %}>
-                                            {{ file.name }}
-                                        </a>
+                                        <div class="file-item-content">
+                                            <a href="{{ url_for('project_file', project_id=project.id, file_path=file.path) }}" 
+                                               target="_blank" 
+                                               {% if file.path == project.main_file %}class="main-file"{% endif %}>
+                                                {{ file.name }}
+                                            </a>
+                                            <a href="{{ url_for('view_code', project_id=project.id, file_path=file.path) }}" 
+                                               class="view-code-link" 
+                                               title="View code">
+                                                Code
+                                            </a>
+                                        </div>
                                         <span class="file-size">{{ (file.size / 1024)|round(1) }} KB</span>
                                     </li>
                                 {% endfor %}

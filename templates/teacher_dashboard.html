@@ -6,7 +6,10 @@
 <div class="container">
     <div class="dashboard-header">
         <h1>Teacher Dashboard</h1>
-        <a href="{{ url_for('create_classroom') }}" class="btn btn-primary">Create Classroom</a>
+        <div class="dashboard-actions">
+            <a href="{{ url_for('create_classroom') }}" class="btn btn-primary">Create Classroom</a>
+            <a href="{{ url_for('teacher_sharing') }}" class="btn btn-secondary">Share with Parents</a>
+        </div>
     </div>
     
     <div class="classrooms-grid">

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="admin-header">
+        <h1>Admin Dashboard</h1>
+        <p class="admin-subtitle">Manage users, classrooms, and projects</p>
+    </div>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>{{ stats.total_users }}</h3>
+            <p>Total Users</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ stats.total_students }}</h3>
+            <p>Students</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ stats.total_teachers }}</h3>
+            <p>Teachers</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ stats.total_classrooms }}</h3>
+            <p>Classrooms</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ stats.total_projects }}</h3>
+            <p>Projects</p>
+        </div>
+    </div>
+    
+    <div class="admin-sections">
+        <div class="admin-section">
+            <h2>Users Management</h2>
+            <div class="table-container">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>{{ user.id }}</td>
+                            <td>{{ user.username }}</td>
+                            <td>{{ user.email }}</td>
+                            <td><span class="role-badge role-{{ user.role }}">{{ user.role }}</span></td>
+                            <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td>
+                                {% if user.role != 'admin' %}
+                                    <form method="POST" action="{{ url_for('toggle_user_role', user_id=user.id) }}" style="display: inline;">
+                                        <button type="submit" class="btn btn-small">Toggle Role</button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure?')">
+                                        <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                                    </form>
+                                {% else %}
+                                    <span class="text-muted">Protected</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="admin-section">
+            <h2>Classrooms</h2>
+            <div class="classrooms-list">
+                {% for classroom in classrooms %}
+                    <div class="classroom-item">
+                        <h3>{{ classroom.name }}</h3>
+                        <p>Code: {{ classroom.code }} | Teacher: {{ classroom.teacher.username }} | Students: {{ classroom.students|length }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="admin-section">
+            <h2>All Projects</h2>
+            <div class="projects-list">
+                {% for project in projects %}
+                    <div class="project-item">
+                        <h3>{{ project.title }}</h3>
+                        <p>By {{ project.student.username }} | Classroom: {{ project.classroom.name }} | Views: {{ project.views }}</p>
+                        <a href="{{ url_for('view_project', project_id=project.id) }}" class="btn btn-small">View</a>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

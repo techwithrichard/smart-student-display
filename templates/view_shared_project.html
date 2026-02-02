@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.title }} - Shared Project{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="shared-project-header">
+        <h1>{{ project.title }}</h1>
+        <p class="shared-meta">By {{ project.student.username }} | Shared by {{ share.teacher.username }}</p>
+    </div>
+    
+    {% if project.description %}
+        <div class="project-description-shared">
+            <p>{{ project.description }}</p>
+        </div>
+    {% endif %}
+    
+    {% if project.screenshot_path %}
+        <div class="project-screenshot-display">
+            <img src="{{ url_for('static', filename='screenshots/' + project.screenshot_path) }}" alt="Project screenshot" class="screenshot-image">
+        </div>
+    {% endif %}
+    
+    {% if project.project_type == 'html' %}
+        {% if project.project_dir %}
+            <div class="shared-project-view">
+                <iframe src="{{ url_for('project_file', project_id=project.id, file_path=project.main_file) }}" class="shared-iframe"></iframe>
+            </div>
+        {% elif project.file_path %}
+            <div class="shared-project-view">
+                <iframe src="{{ url_for('static', filename='uploads/' + project.file_path) }}" class="shared-iframe"></iframe>
+            </div>
+        {% endif %}
+    {% elif project.project_type == 'scratch' %}
+        <div class="scratch-embed">
+            <iframe src="{{ project.scratch_link }}/embed" allowtransparency="true" width="100%" height="600" frameborder="0" scrolling="no" allowfullscreen></iframe>
+            <a href="{{ project.scratch_link }}" target="_blank" class="btn btn-secondary">View on Scratch</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

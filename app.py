@@ -14,17 +14,20 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-i
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///student_projects.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
+app.config['SCREENSHOT_FOLDER'] = 'static/screenshots'
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size for zip files
 ALLOWED_EXTENSIONS = {'html', 'zip', 'css', 'js', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'json', 'txt', 'ico'}
 ALLOWED_ZIP_EXTENSIONS = {'zip'}
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'svg'}
 
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# Ensure upload directory exists
+# Ensure upload directories exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['SCREENSHOT_FOLDER'], exist_ok=True)
 
 # Database Models
 class User(UserMixin, db.Model):
@@ -32,7 +35,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(20), default='student')  # student or teacher
+    role = db.Column(db.String(20), default='student')  # student, teacher, or admin
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     classrooms = db.relationship('Classroom', backref='teacher', lazy=True)
     projects = db.relationship('Project', backref='student', lazy=True)
@@ -66,11 +69,15 @@ class Project(db.Model):
     project_dir = db.Column(db.String(255))  # For multi-file projects (directory path)
     main_file = db.Column(db.String(255))  # Main entry point (index.html, etc.)
     scratch_link = db.Column(db.String(500))  # For Scratch links
+    screenshot_path = db.Column(db.String(255))  # Screenshot image of the project
     student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     classroom_id = db.Column(db.Integer, db.ForeignKey('classroom.id'), nullable=False)
+    tagged_teacher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Teacher tagged to project
+    visibility = db.Column(db.String(20), default='classroom')  # classroom, public, private, parents
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     likes = db.Column(db.Integer, default=0)
     views = db.Column(db.Integer, default=0)
+    tagged_teacher = db.relationship('User', foreign_keys=[tagged_teacher_id], backref='tagged_projects')
 
 class Challenge(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -159,6 +166,24 @@ def student_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def admin_required(f):
+    @wraps(f)
+    @login_required
+    def decorated_function(*args, **kwargs):
+        if current_user.role != 'admin':
+            flash('Access denied. Admin privileges required.')
+            return redirect(url_for('dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def allowed_image_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+def generate_share_code():
+    import random
+    import string
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+
 # Routes
 @app.route('/')
 def index():
@@ -219,7 +244,9 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    if current_user.role == 'teacher':
+    if current_user.role == 'admin':
+        return redirect(url_for('admin_dashboard'))
+    elif current_user.role == 'teacher':
         classrooms = Classroom.query.filter_by(teacher_id=current_user.id).all()
         return render_template('teacher_dashboard.html', classrooms=classrooms)
     else:
@@ -336,12 +363,18 @@ def upload_project():
             flash('You are not enrolled in this classroom')
             return redirect(url_for('dashboard'))
         
+        # Get tagged teacher from classroom
+        classroom = Classroom.query.get(classroom_id)
+        tagged_teacher_id = classroom.teacher_id if classroom else None
+        
         project = Project(
             title=title,
             description=description,
             project_type=project_type,
             student_id=current_user.id,
-            classroom_id=classroom_id
+            classroom_id=classroom_id,
+            tagged_teacher_id=tagged_teacher_id,
+            visibility='classroom'  # Default visibility
         )
         
         if project_type == 'html':
@@ -448,6 +481,15 @@ def upload_project():
                 return redirect(url_for('upload_project'))
             project.scratch_link = scratch_link
         
+        # Handle screenshot upload
+        if 'screenshot' in request.files:
+            screenshot = request.files['screenshot']
+            if screenshot.filename and allowed_image_file(screenshot.filename):
+                filename = secure_filename(f"screenshot_{current_user.id}_{datetime.now().timestamp()}.{screenshot.filename.rsplit('.', 1)[1].lower()}")
+                filepath = os.path.join(app.config['SCREENSHOT_FOLDER'], filename)
+                screenshot.save(filepath)
+                project.screenshot_path = filename
+        
         db.session.add(project)
         db.session.commit()
         flash('Project uploaded successfully!')
@@ -463,22 +505,14 @@ def upload_project():
 @login_required
 def view_project(project_id):
     project = Project.query.get_or_404(project_id)
+    
+    # Check access based on visibility
+    if not check_project_access(project):
+        flash('You do not have access to this project')
+        return redirect(url_for('dashboard'))
+    
     project.views += 1
     db.session.commit()
-    
-    # Check access
-    if current_user.role == 'teacher':
-        if project.classroom.teacher_id != current_user.id:
-            flash('You do not have access to this project')
-            return redirect(url_for('dashboard'))
-    else:
-        enrollment = ClassroomStudent.query.filter_by(
-            classroom_id=project.classroom_id,
-            student_id=current_user.id
-        ).first()
-        if not enrollment:
-            flash('You are not enrolled in this classroom')
-            return redirect(url_for('dashboard'))
     
     # Get project files if it's a multi-file project
     project_files = []
@@ -494,17 +528,9 @@ def project_file(project_id, file_path):
     # Serve files from project directory
     project = Project.query.get_or_404(project_id)
     
-    # Check access
-    if current_user.role == 'teacher':
-        if project.classroom.teacher_id != current_user.id:
-            abort(403)
-    else:
-        enrollment = ClassroomStudent.query.filter_by(
-            classroom_id=project.classroom_id,
-            student_id=current_user.id
-        ).first()
-        if not enrollment:
-            abort(403)
+    # Check access based on visibility
+    if not check_project_access(project):
+        abort(403)
     
     if not project.project_dir:
         abort(404)
@@ -524,6 +550,64 @@ def project_file(project_id, file_path):
         abort(403)
     
     return send_from_directory(project_dir_path, safe_path)
+
+@app.route('/project/<int:project_id>/code/<path:file_path>')
+@login_required
+def view_code(project_id, file_path):
+    # View code content of a file
+    project = Project.query.get_or_404(project_id)
+    
+    if not check_project_access(project):
+        abort(403)
+    
+    if not project.project_dir:
+        abort(404)
+    
+    project_dir_path = os.path.join(app.config['UPLOAD_FOLDER'], project.project_dir)
+    safe_path = os.path.normpath(file_path).lstrip('/')
+    if '..' in safe_path or safe_path.startswith('/'):
+        abort(403)
+    
+    file_full_path = os.path.join(project_dir_path, safe_path)
+    if not os.path.exists(file_full_path) or not os.path.isfile(file_full_path):
+        abort(404)
+    
+    if not os.path.commonpath([project_dir_path, file_full_path]) == project_dir_path:
+        abort(403)
+    
+    # Read file content
+    try:
+        with open(file_full_path, 'r', encoding='utf-8', errors='ignore') as f:
+            code_content = f.read()
+        file_extension = os.path.splitext(safe_path)[1].lstrip('.')
+        return render_template('view_code.html', project=project, file_path=safe_path, code_content=code_content, file_extension=file_extension)
+    except Exception as e:
+        flash('Error reading file: ' + str(e))
+        return redirect(url_for('view_project', project_id=project_id))
+
+def check_project_access(project):
+    # Check if user has access to project based on visibility settings
+    if current_user.role == 'admin':
+        return True
+    if project.student_id == current_user.id:
+        return True
+    if project.visibility == 'public':
+        return True
+    if project.visibility == 'private':
+        return False
+    if project.visibility == 'classroom':
+        if current_user.role == 'teacher':
+            return project.classroom.teacher_id == current_user.id
+        enrollment = ClassroomStudent.query.filter_by(
+            classroom_id=project.classroom_id,
+            student_id=current_user.id
+        ).first()
+        return enrollment is not None
+    if project.visibility == 'parents':
+        if current_user.role == 'teacher':
+            return project.classroom.teacher_id == current_user.id or project.tagged_teacher_id == current_user.id
+        return False
+    return False
 
 @app.route('/project/<int:project_id>/like', methods=['POST'])
 @login_required
@@ -611,6 +695,127 @@ def submit_challenge(challenge_id):
     flash(f'Challenge submitted! You earned {challenge.points} points!')
     return redirect(url_for('classroom_view', classroom_id=challenge.classroom_id))
 
+# Admin routes
+@app.route('/admin')
+@admin_required
+def admin_dashboard():
+    users = User.query.all()
+    classrooms = Classroom.query.all()
+    projects = Project.query.all()
+    stats = {
+        'total_users': User.query.count(),
+        'total_students': User.query.filter_by(role='student').count(),
+        'total_teachers': User.query.filter_by(role='teacher').count(),
+        'total_classrooms': Classroom.query.count(),
+        'total_projects': Project.query.count()
+    }
+    return render_template('admin_dashboard.html', users=users, classrooms=classrooms, projects=projects, stats=stats)
+
+@app.route('/admin/user/<int:user_id>/delete', methods=['POST'])
+@admin_required
+def delete_user(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.role == 'admin':
+        flash('Cannot delete admin user')
+        return redirect(url_for('admin_dashboard'))
+    db.session.delete(user)
+    db.session.commit()
+    flash(f'User {user.username} deleted successfully')
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/user/<int:user_id>/toggle', methods=['POST'])
+@admin_required
+def toggle_user_role(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.role == 'admin':
+        flash('Cannot modify admin user')
+        return redirect(url_for('admin_dashboard'))
+    user.role = 'teacher' if user.role == 'student' else 'student'
+    db.session.commit()
+    flash(f'User {user.username} role updated to {user.role}')
+    return redirect(url_for('admin_dashboard'))
+
+# Project permissions and settings
+@app.route('/project/<int:project_id>/settings', methods=['GET', 'POST'])
+@login_required
+def project_settings(project_id):
+    project = Project.query.get_or_404(project_id)
+    if project.student_id != current_user.id and current_user.role != 'admin':
+        flash('You can only edit your own projects')
+        return redirect(url_for('view_project', project_id=project_id))
+    
+    if request.method == 'POST':
+        project.visibility = request.form.get('visibility', 'classroom')
+        tagged_teacher_id = request.form.get('tagged_teacher_id')
+        if tagged_teacher_id:
+            teacher = User.query.get(tagged_teacher_id)
+            if teacher and teacher.role == 'teacher':
+                project.tagged_teacher_id = teacher.id
+        else:
+            project.tagged_teacher_id = None
+        
+        if 'screenshot' in request.files:
+            screenshot = request.files['screenshot']
+            if screenshot.filename and allowed_image_file(screenshot.filename):
+                filename = secure_filename(f"screenshot_{project.id}_{datetime.now().timestamp()}.{screenshot.filename.rsplit('.', 1)[1].lower()}")
+                filepath = os.path.join(app.config['SCREENSHOT_FOLDER'], filename)
+                screenshot.save(filepath)
+                project.screenshot_path = filename
+        
+        db.session.commit()
+        flash('Project settings updated successfully!')
+        return redirect(url_for('view_project', project_id=project_id))
+    
+    teachers = User.query.filter_by(role='teacher').all()
+    return render_template('project_settings.html', project=project, teachers=teachers)
+
+# Teacher sharing with parents
+@app.route('/teacher/share-project/<int:project_id>', methods=['GET', 'POST'])
+@teacher_required
+def share_project_with_parents(project_id):
+    project = Project.query.get_or_404(project_id)
+    if project.classroom.teacher_id != current_user.id and current_user.role != 'admin':
+        flash('You can only share projects from your classrooms')
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        share_type = request.form.get('share_type', 'parents')
+        share_code = generate_share_code()
+        
+        existing_share = ProjectShare.query.filter_by(project_id=project_id, teacher_id=current_user.id).first()
+        if existing_share:
+            existing_share.share_code = share_code
+            existing_share.share_type = share_type
+        else:
+            share = ProjectShare(
+                project_id=project_id,
+                teacher_id=current_user.id,
+                share_type=share_type,
+                share_code=share_code
+            )
+            db.session.add(share)
+        
+        db.session.commit()
+        flash(f'Project shared! Share code: {share_code}')
+        return redirect(url_for('teacher_sharing'))
+    
+    return render_template('share_project.html', project=project)
+
+@app.route('/teacher/sharing')
+@teacher_required
+def teacher_sharing():
+    classrooms = Classroom.query.filter_by(teacher_id=current_user.id).all()
+    classroom_ids = [c.id for c in classrooms]
+    projects = Project.query.filter(Project.classroom_id.in_(classroom_ids)).all()
+    shares = ProjectShare.query.filter_by(teacher_id=current_user.id).all()
+    return render_template('teacher_sharing.html', projects=projects, shares=shares)
+
+@app.route('/share/<share_code>')
+def view_shared_project(share_code):
+    share = ProjectShare.query.filter_by(share_code=share_code).first_or_404()
+    project = share.project
+    return render_template('view_shared_project.html', project=project, share=share)
+
 # Error handlers
 @app.errorhandler(404)
 def not_found_error(error):
@@ -628,6 +833,18 @@ def request_entity_too_large(error):
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+        # Create admin user if it doesn't exist
+        admin = User.query.filter_by(username='richard', email='richard@gmail.com').first()
+        if not admin:
+            admin = User(
+                username='richard',
+                email='richard@gmail.com',
+                password_hash=generate_password_hash('richard'),
+                role='admin'
+            )
+            db.session.add(admin)
+            db.session.commit()
+            print("Admin user 'richard' created with password 'richard'")
         print("Database initialized successfully")
         print("Starting server on http://127.0.0.1:5000")
     app.run(debug=True, host='127.0.0.1', port=5000)

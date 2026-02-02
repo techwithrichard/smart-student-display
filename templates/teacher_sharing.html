@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Share Projects with Parents{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="dashboard-header">
+        <h1>Share Projects with Parents</h1>
+        <p>Generate shareable links for student projects to share with parents</p>
+    </div>
+    
+    <div class="sharing-section">
+        <h2>Available Projects</h2>
+        <div class="projects-grid">
+            {% for project in projects %}
+                <div class="project-card">
+                    <h3>{{ project.title }}</h3>
+                    <p>By {{ project.student.username }}</p>
+                    <p>Classroom: {{ project.classroom.name }}</p>
+                    <div class="project-actions">
+                        <a href="{{ url_for('share_project_with_parents', project_id=project.id) }}" class="btn btn-primary">Share</a>
+                        <a href="{{ url_for('view_project', project_id=project.id) }}" class="btn btn-secondary">View</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <div class="sharing-section">
+        <h2>Active Share Links</h2>
+        {% if shares %}
+            <div class="shares-list">
+                {% for share in shares %}
+                    <div class="share-item">
+                        <div class="share-info">
+                            <h3>{{ share.project.title }}</h3>
+                            <p>By {{ share.project.student.username }}</p>
+                            <p class="share-code">Share Code: <strong>{{ share.share_code }}</strong></p>
+                            <p class="share-link">Link: <a href="{{ url_for('view_shared_project', share_code=share.share_code, _external=True) }}" target="_blank">{{ url_for('view_shared_project', share_code=share.share_code, _external=True) }}</a></p>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-state">No active share links. Share a project to generate a link.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

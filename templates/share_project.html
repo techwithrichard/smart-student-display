@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Share Project - {{ project.title }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="form-container">
+        <h1>Share Project with Parents</h1>
+        <div class="project-info-share">
+            <h3>{{ project.title }}</h3>
+            <p>By {{ project.student.username }}</p>
+        </div>
+        <form method="POST" action="{{ url_for('share_project_with_parents', project_id=project.id) }}">
+            <div class="form-group">
+                <label for="share_type">Share Type</label>
+                <select id="share_type" name="share_type">
+                    <option value="parents">Parents Only</option>
+                    <option value="public">Public Link</option>
+                </select>
+                <small>Choose who can access this shared link</small>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block">Generate Share Link</button>
+            <a href="{{ url_for('teacher_sharing') }}" class="btn btn-secondary btn-block">Back to Sharing</a>
+        </form>
+    </div>
+</div>
+{% endblock %}
