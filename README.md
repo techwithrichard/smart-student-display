@@ -6,7 +6,9 @@ A fullstack web application built with Flask, HTML, and CSS that allows students
 
 - **User Authentication**: Separate login/registration for students and teachers
 - **Classroom Management**: Teachers can create classrooms with unique codes for students to join
-- **Project Upload**: Students can upload HTML files or share Scratch project links
+- **Project Upload**: Students can upload single HTML files, multiple files, or entire ZIP archives with full directory structure preservation
+- **Multi-File Projects**: Support for complete web projects with HTML, CSS, JavaScript, images, and other assets
+- **File Browser**: Interactive file browser to navigate and view all files in multi-file projects
 - **Project Gallery**: Creative display of all projects in a classroom with likes and views
 - **Challenges**: Teachers can create coding challenges with point rewards
 - **Leaderboard**: Track student points and rankings within each classroom
@@ -58,10 +60,14 @@ python app.py
 
 1. Register as a student
 2. Join a classroom using the code provided by your teacher
-3. Upload HTML projects or share Scratch links
+3. Upload projects using one of three methods:
+   - **Single HTML File**: Upload a standalone HTML file
+   - **ZIP Archive**: Upload a complete project as a ZIP file (maintains directory structure)
+   - **Multiple Files**: Select and upload multiple files at once (preserves original filenames)
 4. Submit projects to complete challenges
 5. View and like peer projects
-6. Track your position on the leaderboard
+6. Navigate multi-file projects using the built-in file browser
+7. Track your position on the leaderboard
 
 ## Project Structure
 
@@ -93,7 +99,7 @@ smart-student-display/
 - **User**: Stores user accounts (students and teachers)
 - **Classroom**: Represents a classroom created by a teacher
 - **ClassroomStudent**: Junction table for student enrollments and points
-- **Project**: Stores student projects (HTML or Scratch)
+- **Project**: Stores student projects (HTML or Scratch). Supports both single-file and multi-file projects with directory structure
 - **Challenge**: Coding challenges created by teachers
 - **ChallengeSubmission**: Tracks student challenge submissions
 
