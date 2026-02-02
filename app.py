@@ -96,6 +96,17 @@ class ChallengeSubmission(db.Model):
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
     points_awarded = db.Column(db.Integer, default=0)
 
+class ProjectShare(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    share_type = db.Column(db.String(20), default='parents')
+    share_code = db.Column(db.String(20), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=True)
+    project = db.relationship('Project', backref='shares')
+    teacher = db.relationship('User', foreign_keys=[teacher_id], backref='shared_projects')
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
