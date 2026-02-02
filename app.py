@@ -815,6 +815,14 @@ def share_project_with_parents(project_id):
     
     if request.method == 'POST':
         share_type = request.form.get('share_type', 'parents')
+        
+        # For non-public projects, only allow sharing to student's parent
+        if project.visibility != 'public' and share_type == 'parents':
+            student = project.student
+            if not student.parent_email:
+                flash('Cannot share: This student has no parent email registered and project is not public.')
+                return redirect(url_for('share_project_with_parents', project_id=project_id))
+        
         share_code = generate_share_code()
         
         existing_share = ProjectShare.query.filter_by(project_id=project_id, teacher_id=current_user.id).first()
@@ -867,6 +875,16 @@ def send_project_email(project_id):
         if not parent_email:
             flash('Parent email is required')
             return redirect(url_for('send_project_email', project_id=project_id))
+        
+        # Check if project is public or if parent email matches student's parent
+        student = project.student
+        if project.visibility != 'public':
+            if not student.parent_email:
+                flash('This student has no parent email registered. Cannot send email.')
+                return redirect(url_for('send_project_email', project_id=project_id))
+            if parent_email.lower() != student.parent_email.lower():
+                flash('You can only send this project to the student\'s registered parent email. This project is not public.')
+                return redirect(url_for('send_project_email', project_id=project_id))
         
         # Generate or get share code
         share = ProjectShare.query.filter_by(project_id=project_id, teacher_id=current_user.id).first()
@@ -935,13 +953,23 @@ def send_bulk_email(project_id):
         flash('You can only send emails for projects from your classrooms')
         return redirect(url_for('dashboard'))
     
-    # Get all students in the classroom with parent emails
-    enrollments = ClassroomStudent.query.filter_by(classroom_id=project.classroom_id).all()
-    students = [User.query.get(e.student_id) for e in enrollments]
-    students_with_parents = [s for s in students if s and s.parent_email]
+    # Only send to the specific student's parent (not all parents in classroom)
+    student = project.student
+    if not student.parent_email:
+        flash('This student has no parent email registered. Cannot send email.')
+        return redirect(url_for('send_project_email', project_id=project_id))
+    
+    # Check if project is public - if not, only send to student's parent
+    if project.visibility != 'public':
+        students_with_parents = [student] if student.parent_email else []
+    else:
+        # For public projects, get all students in classroom with parent emails
+        enrollments = ClassroomStudent.query.filter_by(classroom_id=project.classroom_id).all()
+        students = [User.query.get(e.student_id) for e in enrollments]
+        students_with_parents = [s for s in students if s and s.parent_email]
     
     if not students_with_parents:
-        flash('No students in this classroom have parent emails registered')
+        flash('No parent email available for this project')
         return redirect(url_for('send_project_email', project_id=project_id))
     
     # Generate or get share code

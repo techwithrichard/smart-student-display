@@ -9,6 +9,11 @@
         <div class="project-info-share">
             <h3>{{ project.title }}</h3>
             <p>By {{ project.student.username }}</p>
+            {% if project.visibility == 'public' %}
+                <p class="public-project-notice">This is a public project - can be shared with anyone</p>
+            {% else %}
+                <p class="private-project-notice">This project can only be shared with the student's registered parent</p>
+            {% endif %}
             {% if project.student.parent_email %}
                 <p class="parent-email-info">Student's registered parent email: {{ project.student.parent_email }}</p>
             {% else %}
@@ -19,8 +24,12 @@
         <form method="POST" action="{{ url_for('send_project_email', project_id=project.id) }}">
             <div class="form-group">
                 <label for="parent_email">Parent Email Address</label>
-                <input type="email" id="parent_email" name="parent_email" value="{{ parent_email }}" required>
-                <small>Enter the parent's email address to send the project link</small>
+                <input type="email" id="parent_email" name="parent_email" value="{{ parent_email }}" required {% if project.visibility != 'public' and parent_email %}readonly{% endif %}>
+                {% if project.visibility != 'public' %}
+                    <small>Only the student's registered parent email can receive this project (unless project is public)</small>
+                {% else %}
+                    <small>Enter the parent's email address to send the project link</small>
+                {% endif %}
             </div>
             
             <div class="form-group">
@@ -32,10 +41,10 @@
             <a href="{{ url_for('teacher_sharing') }}" class="btn btn-secondary btn-block">Cancel</a>
         </form>
         
-        {% if project.student.parent_email %}
+        {% if project.visibility == 'public' and project.student.parent_email %}
             <div class="bulk-email-section">
-                <h3>Bulk Email</h3>
-                <p>Send this project to all parents in the classroom</p>
+                <h3>Bulk Email (Public Projects Only)</h3>
+                <p>Send this public project to all parents in the classroom</p>
                 <form method="POST" action="{{ url_for('send_bulk_email', project_id=project.id) }}">
                     <div class="form-group">
                         <label for="bulk_message">Message for All Parents (Optional)</label>
@@ -43,6 +52,10 @@
                     </div>
                     <button type="submit" class="btn btn-secondary btn-block">Send to All Parents</button>
                 </form>
+            </div>
+        {% elif project.visibility != 'public' %}
+            <div class="bulk-email-section">
+                <p class="bulk-email-note">Bulk email is only available for public projects. This project can only be sent to the student's registered parent.</p>
             </div>
         {% endif %}
     </div>

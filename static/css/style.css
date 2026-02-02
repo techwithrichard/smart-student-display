@@ -1237,6 +1237,32 @@ body {
     margin-bottom: 0.5rem;
 }
 
+.public-project-notice {
+    color: var(--secondary-color);
+    font-weight: bold;
+    padding: 0.5rem;
+    background: #e8f5e9;
+    border-radius: 5px;
+    margin: 0.5rem 0;
+}
+
+.private-project-notice {
+    color: var(--accent-color);
+    font-weight: bold;
+    padding: 0.5rem;
+    background: #ffe8e8;
+    border-radius: 5px;
+    margin: 0.5rem 0;
+}
+
+.bulk-email-note {
+    color: var(--text-light);
+    font-style: italic;
+    padding: 1rem;
+    background: var(--light-bg);
+    border-radius: 5px;
+}
+
 @media (max-width: 768px) {
     .stats-grid {
         grid-template-columns: 1fr;
