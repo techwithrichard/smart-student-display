@@ -223,7 +223,7 @@ def teacher_required(f):
     @login_required
     def decorated_function(*args, **kwargs):
         if current_user.role not in ['teacher', 'staff', 'admin']:
-            flash('Access denied. Teacher privileges required.')
+            flash('Access denied. Teacher privileges required.', 'error')
             return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
     return decorated_function
@@ -233,7 +233,7 @@ def student_required(f):
     @login_required
     def decorated_function(*args, **kwargs):
         if current_user.role != 'student':
-            flash('Access denied. Student privileges required.')
+            flash('Access denied. Student privileges required.', 'error')
             return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
     return decorated_function
@@ -243,7 +243,7 @@ def admin_required(f):
     @login_required
     def decorated_function(*args, **kwargs):
         if current_user.role != 'admin':
-            flash('Access denied. Admin privileges required.')
+            flash('Access denied. Admin privileges required.', 'error')
             return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
     return decorated_function
@@ -272,11 +272,11 @@ def register():
         role = request.form.get('role', 'student')
         
         if User.query.filter_by(username=username).first():
-            flash('Username already exists')
+            flash('Username already exists', 'error')
             return redirect(url_for('register'))
         
         if User.query.filter_by(email=email).first():
-            flash('Email already exists')
+            flash('Email already exists', 'error')
             return redirect(url_for('register'))
         
         parent_email = request.form.get('parent_email', '').strip() if role == 'student' else None
@@ -290,7 +290,7 @@ def register():
         )
         db.session.add(user)
         db.session.commit()
-        flash('Registration successful! Please login.')
+        flash('Registration successful! Please login.', 'success')
         return redirect(url_for('login'))
     
     return render_template('register.html')
@@ -310,7 +310,7 @@ def login():
             login_user(user)
             return redirect(url_for('dashboard'))
         else:
-            flash('Invalid username/email or password')
+            flash('Invalid username/email or password', 'error')
     
     return render_template('login.html')
 
@@ -351,22 +351,22 @@ def create_classroom():
         teacher_id = request.form.get('teacher_id')
         
         if not teacher_id:
-            flash('Please select a teacher for this classroom')
+            flash('Please select a teacher for this classroom', 'error')
             return redirect(url_for('create_classroom'))
         
         teacher = User.query.get(teacher_id)
         if not teacher or teacher.role != 'teacher':
-            flash('Invalid teacher selected')
+            flash('Invalid teacher selected', 'error')
             return redirect(url_for('create_classroom'))
         
         if Classroom.query.filter_by(code=code).first():
-            flash('Classroom code already exists')
+            flash('Classroom code already exists', 'error')
             return redirect(url_for('create_classroom'))
         
         classroom = Classroom(name=name, code=code, teacher_id=teacher_id)
         db.session.add(classroom)
         db.session.commit()
-        flash('Classroom created successfully!')
+        flash('Classroom created successfully!', 'success')
         return redirect(url_for('admin_dashboard'))
     
     teachers = User.query.filter_by(role='teacher').all()
@@ -380,18 +380,18 @@ def add_student_to_classroom(classroom_id):
     
     # Only admin or the classroom teacher can add students
     if current_user.role != 'admin' and classroom.teacher_id != current_user.id:
-        flash('You do not have permission to add students to this classroom')
+        flash('You do not have permission to add students to this classroom', 'error')
         return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
         student_id = request.form.get('student_id')
         if not student_id:
-            flash('Please select a student')
+            flash('Please select a student', 'error')
             return redirect(url_for('add_student_to_classroom', classroom_id=classroom_id))
         
         student = User.query.get(student_id)
         if not student or student.role != 'student':
-            flash('Invalid student selected')
+            flash('Invalid student selected', 'error')
             return redirect(url_for('add_student_to_classroom', classroom_id=classroom_id))
         
         # Check if already enrolled
@@ -401,13 +401,13 @@ def add_student_to_classroom(classroom_id):
         ).first()
         
         if existing:
-            flash(f'{student.username} is already in this classroom')
+            flash(f'{student.username} is already in this classroom', 'warning')
             return redirect(url_for('add_student_to_classroom', classroom_id=classroom_id))
         
         enrollment = ClassroomStudent(classroom_id=classroom_id, student_id=student_id)
         db.session.add(enrollment)
         db.session.commit()
-        flash(f'Student {student.username} added to classroom successfully!')
+        flash(f'Student {student.username} added to classroom successfully!', 'success')
         return redirect(url_for('classroom_view', classroom_id=classroom_id))
     
     # Get all students not yet in this classroom
@@ -425,7 +425,7 @@ def remove_student_from_classroom(classroom_id, student_id):
     
     # Only admin or the classroom teacher can remove students
     if current_user.role != 'admin' and classroom.teacher_id != current_user.id:
-        flash('You do not have permission to remove students from this classroom')
+        flash('You do not have permission to remove students from this classroom', 'error')
         return redirect(url_for('dashboard'))
     
     enrollment = ClassroomStudent.query.filter_by(
@@ -436,7 +436,7 @@ def remove_student_from_classroom(classroom_id, student_id):
     student = User.query.get(student_id)
     db.session.delete(enrollment)
     db.session.commit()
-    flash(f'Student {student.username} removed from classroom')
+    flash(f'Student {student.username} removed from classroom', 'success')
     return redirect(url_for('classroom_view', classroom_id=classroom_id))
 
 @app.route('/classroom/<int:classroom_id>')
@@ -447,7 +447,7 @@ def classroom_view(classroom_id):
     # Check access
     if current_user.role in ['teacher', 'staff', 'admin']:
         if classroom.teacher_id != current_user.id and current_user.role != 'admin':
-            flash('You do not have access to this classroom')
+            flash('You do not have access to this classroom', 'error')
             return redirect(url_for('dashboard'))
     else:
         enrollment = ClassroomStudent.query.filter_by(
@@ -475,7 +475,7 @@ def classroom_view(classroom_id):
 @login_required
 def upload_project():
     if current_user.role in ['teacher', 'staff', 'admin']:
-        flash('Teachers and staff cannot upload projects')
+        flash('Teachers and staff cannot upload projects', 'error')
         return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
@@ -489,7 +489,7 @@ def upload_project():
         if assignment_id:
             assignment = Assignment.query.get(assignment_id)
             if not assignment:
-                flash('Invalid assignment')
+                flash('Invalid assignment', 'error')
                 return redirect(url_for('upload_project'))
             classroom_id = assignment.subject.classroom_id
             subject_id = assignment.subject_id
@@ -528,12 +528,12 @@ def upload_project():
             if upload_type == 'zip':
                 # Handle zip file upload
                 if 'zip_file' not in request.files:
-                    flash('No zip file uploaded')
+                    flash('No zip file uploaded', 'error')
                     return redirect(url_for('upload_project'))
                 
                 zip_file = request.files['zip_file']
                 if zip_file.filename == '':
-                    flash('No zip file selected')
+                    flash('No zip file selected', 'error')
                     return redirect(url_for('upload_project'))
                 
                 if zip_file and allowed_zip_file(zip_file.filename):
@@ -557,18 +557,18 @@ def upload_project():
                         project.project_dir = project_dir_name
                         project.main_file = main_file
                     else:
-                        flash('No HTML files found in zip archive')
+                        flash('No HTML files found in zip archive', 'error')
                         shutil.rmtree(project_dir_path)
                         return redirect(url_for('upload_project'))
                 else:
-                    flash('Invalid file type. Please upload a ZIP file.')
+                    flash('Invalid file type. Please upload a ZIP file.', 'error')
                     return redirect(url_for('upload_project'))
             
             elif upload_type == 'multiple':
                 # Handle multiple file upload
                 files = request.files.getlist('files[]')
                 if not files or all(f.filename == '' for f in files):
-                    flash('No files selected')
+                    flash('No files selected', 'error')
                     return redirect(url_for('upload_project'))
                 
                 # Create project directory
@@ -595,19 +595,19 @@ def upload_project():
                     project.project_dir = project_dir_name
                     project.main_file = main_file
                 else:
-                    flash('No HTML files found in upload')
+                    flash('No HTML files found in upload', 'error')
                     shutil.rmtree(project_dir_path)
                     return redirect(url_for('upload_project'))
             
             else:
                 # Handle single file upload (backward compatibility)
                 if 'file' not in request.files:
-                    flash('No file uploaded')
+                    flash('No file uploaded', 'error')
                     return redirect(url_for('upload_project'))
                 
                 file = request.files['file']
                 if file.filename == '':
-                    flash('No file selected')
+                    flash('No file selected', 'error')
                     return redirect(url_for('upload_project'))
                 
                 if file and allowed_file(file.filename):
@@ -616,13 +616,13 @@ def upload_project():
                     file.save(filepath)
                     project.file_path = filename
                 else:
-                    flash('Invalid file type. Allowed: HTML, CSS, JS, images, and other web assets.')
+                    flash('Invalid file type. Allowed: HTML, CSS, JS, images, and other web assets.', 'error')
                     return redirect(url_for('upload_project'))
         
         elif project_type == 'scratch':
             scratch_link = request.form.get('scratch_link')
             if not scratch_link:
-                flash('Scratch link is required')
+                flash('Scratch link is required', 'error')
                 return redirect(url_for('upload_project'))
             project.scratch_link = scratch_link
         
@@ -644,7 +644,7 @@ def upload_project():
                 if project.submitted_at > assignment.deadline:
                     flash(f'Project uploaded successfully! Note: This submission is late.')
                 else:
-                    flash('Project uploaded successfully!')
+                    flash('Project uploaded successfully!', 'success')
         
         db.session.add(project)
         db.session.commit()
@@ -656,7 +656,7 @@ def upload_project():
     # Get student's classrooms
     enrollments = ClassroomStudent.query.filter_by(student_id=current_user.id).all()
     if not enrollments:
-        flash('You must be enrolled in a classroom to upload projects')
+        flash('You must be enrolled in a classroom to upload projects', 'error')
         return redirect(url_for('dashboard'))
     
     classroom_ids = [e.classroom_id for e in enrollments]
@@ -674,7 +674,7 @@ def view_project(project_id):
     
     # Check access based on visibility
     if not check_project_access(project):
-        flash('You do not have access to this project')
+        flash('You do not have access to this project', 'error')
         return redirect(url_for('dashboard'))
     
     project.views += 1
@@ -748,7 +748,7 @@ def view_code(project_id, file_path):
         file_extension = os.path.splitext(safe_path)[1].lstrip('.')
         return render_template('view_code.html', project=project, file_path=safe_path, code_content=code_content, file_extension=file_extension)
     except Exception as e:
-        flash('Error reading file: ' + str(e))
+        flash('Error reading file: ' + str(e), 'error')
         return redirect(url_for('view_project', project_id=project_id))
 
 def calculate_late_time(deadline, submitted_at):
@@ -820,7 +820,7 @@ def like_project(project_id):
 @login_required
 def create_challenge():
     if current_user.role not in ['teacher', 'admin']:
-        flash('Only teachers can create challenges')
+        flash('Only teachers can create challenges', 'error')
         return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
@@ -831,7 +831,7 @@ def create_challenge():
         
         classroom = Classroom.query.get(classroom_id)
         if not classroom or classroom.teacher_id != current_user.id:
-            flash('Invalid classroom')
+            flash('Invalid classroom', 'error')
             return redirect(url_for('dashboard'))
         
         challenge = Challenge(
@@ -842,7 +842,7 @@ def create_challenge():
         )
         db.session.add(challenge)
         db.session.commit()
-        flash('Challenge created successfully!')
+        flash('Challenge created successfully!', 'success')
         return redirect(url_for('classroom_view', classroom_id=classroom_id))
     
     classrooms = Classroom.query.filter_by(teacher_id=current_user.id).all()
@@ -852,7 +852,7 @@ def create_challenge():
 @login_required
 def submit_challenge(challenge_id):
     if current_user.role != 'student':
-        flash('Only students can submit challenges')
+        flash('Only students can submit challenges', 'error')
         return redirect(url_for('dashboard'))
     
     challenge = Challenge.query.get_or_404(challenge_id)
@@ -861,7 +861,7 @@ def submit_challenge(challenge_id):
     # Verify project belongs to student and is in same classroom
     project = Project.query.get(project_id)
     if not project or project.student_id != current_user.id or project.classroom_id != challenge.classroom_id:
-        flash('Invalid project')
+        flash('Invalid project', 'error')
         return redirect(url_for('dashboard'))
     
     # Check if already submitted
@@ -871,7 +871,7 @@ def submit_challenge(challenge_id):
     ).first()
     
     if existing:
-        flash('You have already submitted this challenge')
+        flash('You have already submitted this challenge', 'warning')
         return redirect(url_for('classroom_view', classroom_id=challenge.classroom_id))
     
     submission = ChallengeSubmission(
@@ -891,7 +891,7 @@ def submit_challenge(challenge_id):
     
     db.session.add(submission)
     db.session.commit()
-    flash(f'Challenge submitted! You earned {challenge.points} points!')
+    flash(f'Challenge submitted! You earned {challenge.points} points!', 'success')
     return redirect(url_for('classroom_view', classroom_id=challenge.classroom_id))
 
 # Admin routes
@@ -916,11 +916,11 @@ def admin_dashboard():
 def delete_user(user_id):
     user = User.query.get_or_404(user_id)
     if user.role == 'admin':
-        flash('Cannot delete admin user')
+        flash('Cannot delete admin user', 'error')
         return redirect(url_for('admin_dashboard'))
     db.session.delete(user)
     db.session.commit()
-    flash(f'User {user.username} deleted successfully')
+    flash(f'User {user.username} deleted successfully', 'success')
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin/user/<int:user_id>/toggle', methods=['POST'])
@@ -928,7 +928,7 @@ def delete_user(user_id):
 def toggle_user_role(user_id):
     user = User.query.get_or_404(user_id)
     if user.role == 'admin':
-        flash('Cannot modify admin user')
+        flash('Cannot modify admin user', 'error')
         return redirect(url_for('admin_dashboard'))
     # Toggle between student and teacher
     user.role = 'teacher' if user.role == 'student' else 'student'
@@ -947,16 +947,16 @@ def admin_add_user():
         parent_email = request.form.get('parent_email', '').strip() if role == 'student' else None
         
         if User.query.filter_by(username=username).first():
-            flash('Username already exists')
+            flash('Username already exists', 'error')
             return redirect(url_for('admin_add_user'))
         
         if User.query.filter_by(email=email).first():
-            flash('Email already exists')
+            flash('Email already exists', 'error')
             return redirect(url_for('admin_add_user'))
         
         # Parent email is required for students
         if role == 'student' and not parent_email:
-            flash('Parent email is required for students')
+            flash('Parent email is required for students', 'error')
             return redirect(url_for('admin_add_user'))
         
         user = User(
@@ -968,7 +968,7 @@ def admin_add_user():
         )
         db.session.add(user)
         db.session.commit()
-        flash(f'User {username} ({role}) created successfully!')
+        flash(f'User {username} ({role}) created successfully!', 'success')
         return redirect(url_for('admin_dashboard'))
     
     return render_template('admin_add_user.html')
@@ -978,7 +978,7 @@ def admin_add_user():
 def admin_edit_user(user_id):
     user = User.query.get_or_404(user_id)
     if user.role == 'admin' and user.id != current_user.id:
-        flash('Cannot edit other admin users')
+        flash('Cannot edit other admin users', 'error')
         return redirect(url_for('admin_dashboard'))
     
     if request.method == 'POST':
@@ -990,18 +990,18 @@ def admin_edit_user(user_id):
         # Check username uniqueness (except current user)
         existing_user = User.query.filter_by(username=username).first()
         if existing_user and existing_user.id != user.id:
-            flash('Username already exists')
+            flash('Username already exists', 'error')
             return redirect(url_for('admin_edit_user', user_id=user_id))
         
         # Check email uniqueness (except current user)
         existing_email = User.query.filter_by(email=email).first()
         if existing_email and existing_email.id != user.id:
-            flash('Email already exists')
+            flash('Email already exists', 'error')
             return redirect(url_for('admin_edit_user', user_id=user_id))
         
         # Parent email required for students
         if role == 'student' and not parent_email:
-            flash('Parent email is required for students')
+            flash('Parent email is required for students', 'error')
             return redirect(url_for('admin_edit_user', user_id=user_id))
         
         # Update password if provided
@@ -1015,7 +1015,7 @@ def admin_edit_user(user_id):
         user.parent_email = parent_email if parent_email else None
         
         db.session.commit()
-        flash(f'User {username} updated successfully!')
+        flash(f'User {username} updated successfully!', 'success')
         return redirect(url_for('admin_dashboard'))
     
     return render_template('admin_edit_user.html', user=user)
@@ -1031,18 +1031,18 @@ def add_subject(classroom_id):
         teacher_id = request.form.get('teacher_id')
         
         if not name or not teacher_id:
-            flash('Subject name and teacher are required')
+            flash('Subject name and teacher are required', 'error')
             return redirect(url_for('add_subject', classroom_id=classroom_id))
         
         teacher = User.query.get(teacher_id)
         if not teacher or teacher.role != 'teacher':
-            flash('Invalid teacher selected')
+            flash('Invalid teacher selected', 'error')
             return redirect(url_for('add_subject', classroom_id=classroom_id))
         
         subject = Subject(name=name, classroom_id=classroom_id, teacher_id=teacher_id)
         db.session.add(subject)
         db.session.commit()
-        flash(f'Subject "{name}" added successfully!')
+        flash(f'Subject "{name}" added successfully!', 'success')
         return redirect(url_for('classroom_view', classroom_id=classroom_id))
     
     teachers = User.query.filter_by(role='teacher').all()
@@ -1056,7 +1056,7 @@ def create_assignment(subject_id):
     
     # Check if teacher has access
     if current_user.role != 'admin' and subject.teacher_id != current_user.id:
-        flash('You do not have permission to create assignments for this subject')
+        flash('You do not have permission to create assignments for this subject', 'error')
         return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
@@ -1065,13 +1065,13 @@ def create_assignment(subject_id):
         deadline_str = request.form.get('deadline')
         
         if not title or not deadline_str:
-            flash('Title and deadline are required')
+            flash('Title and deadline are required', 'error')
             return redirect(url_for('create_assignment', subject_id=subject_id))
         
         try:
             deadline = datetime.strptime(deadline_str, '%Y-%m-%dT%H:%M')
         except ValueError:
-            flash('Invalid deadline format')
+            flash('Invalid deadline format', 'error')
             return redirect(url_for('create_assignment', subject_id=subject_id))
         
         assignment = Assignment(
@@ -1083,7 +1083,7 @@ def create_assignment(subject_id):
         )
         db.session.add(assignment)
         db.session.commit()
-        flash('Assignment created successfully!')
+        flash('Assignment created successfully!', 'success')
         return redirect(url_for('view_subject', subject_id=subject_id))
     
     return render_template('create_assignment.html', subject=subject)
@@ -1103,7 +1103,7 @@ def view_subject(subject_id):
             flash('You are not enrolled in this classroom')
             return redirect(url_for('dashboard'))
     elif current_user.role not in ['teacher', 'admin']:
-        flash('Access denied')
+        flash('Access denied', 'error')
         return redirect(url_for('dashboard'))
     
     assignments = Assignment.query.filter_by(subject_id=subject_id).order_by(Assignment.deadline).all()
@@ -1127,7 +1127,7 @@ def view_assignment(assignment_id):
             return redirect(url_for('dashboard'))
     elif current_user.role not in ['teacher', 'admin']:
         if subject.teacher_id != current_user.id and current_user.role != 'admin':
-            flash('Access denied')
+            flash('Access denied', 'error')
             return redirect(url_for('dashboard'))
     
     # Get submissions
@@ -1168,7 +1168,7 @@ def view_assignment(assignment_id):
 def project_settings(project_id):
     project = Project.query.get_or_404(project_id)
     if project.student_id != current_user.id and current_user.role != 'admin':
-        flash('You can only edit your own projects')
+        flash('You can only edit your own projects', 'error')
         return redirect(url_for('view_project', project_id=project_id))
     
     if request.method == 'POST':
@@ -1190,7 +1190,7 @@ def project_settings(project_id):
                 project.screenshot_path = filename
         
         db.session.commit()
-        flash('Project settings updated successfully!')
+        flash('Project settings updated successfully!', 'success')
         return redirect(url_for('view_project', project_id=project_id))
     
     teachers = User.query.filter_by(role='teacher').all()
@@ -1202,7 +1202,7 @@ def project_settings(project_id):
 def share_project_with_parents(project_id):
     project = Project.query.get_or_404(project_id)
     if project.classroom.teacher_id != current_user.id and current_user.role != 'admin':
-        flash('You can only share projects from your classrooms')
+        flash('You can only share projects from your classrooms', 'error')
         return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
@@ -1212,7 +1212,7 @@ def share_project_with_parents(project_id):
         if project.visibility != 'public' and share_type == 'parents':
             student = project.student
             if not student.parent_email:
-                flash('Cannot share: This student has no parent email registered and project is not public.')
+                flash('Cannot share: This student has no parent email registered and project is not public.', 'error')
                 return redirect(url_for('share_project_with_parents', project_id=project_id))
         
         share_code = generate_share_code()
@@ -1231,7 +1231,7 @@ def share_project_with_parents(project_id):
             db.session.add(share)
         
         db.session.commit()
-        flash(f'Project shared! Share code: {share_code}')
+        flash(f'Project shared! Share code: {share_code}', 'success')
         return redirect(url_for('teacher_sharing'))
     
     return render_template('share_project.html', project=project)
@@ -1268,7 +1268,7 @@ def view_shared_project(share_code):
 @login_required
 def parent_dashboard():
     if current_user.role != 'parent':
-        flash('Access denied. Parent privileges required.')
+        flash('Access denied. Parent privileges required.', 'error')
         return redirect(url_for('dashboard'))
     
     # Get all notifications for this parent
@@ -1283,12 +1283,12 @@ def parent_dashboard():
 @login_required
 def view_parent_notification(notification_id):
     if current_user.role != 'parent':
-        flash('Access denied. Parent privileges required.')
+        flash('Access denied. Parent privileges required.', 'error')
         return redirect(url_for('dashboard'))
     
     notification = ParentNotification.query.get_or_404(notification_id)
     if notification.parent_id != current_user.id:
-        flash('Access denied')
+        flash('Access denied', 'error')
         return redirect(url_for('parent_dashboard'))
     
     # Mark as viewed
@@ -1328,17 +1328,17 @@ def send_project_email(project_id):
         custom_message = request.form.get('message', '')
         
         if not parent_email:
-            flash('Parent email is required')
+            flash('Parent email is required', 'error')
             return redirect(url_for('send_project_email', project_id=project_id))
         
         # Check if project is public or if parent email matches student's parent
         student = project.student
         if not student.parent_email:
-            flash('This student has no parent email registered. Cannot send email.')
+            flash('This student has no parent email registered. Cannot send email.', 'error')
             return redirect(url_for('send_project_email', project_id=project_id))
         if project.visibility != 'public':
             if parent_email.lower() != student.parent_email.lower():
-                flash('You can only send this project to the student\'s registered parent email. This project is not public.')
+                flash('You can only send this project to the student\'s registered parent email. This project is not public.', 'error')
                 return redirect(url_for('send_project_email', project_id=project_id))
         
         # Generate or get share code
@@ -1392,7 +1392,7 @@ def send_project_email(project_id):
                 db.session.add(notification)
             
             db.session.commit()
-            flash(f'Email sent successfully to {parent_email}!')
+            flash(f'Email sent successfully to {parent_email}!', 'success')
         except Exception as e:
             email_log = EmailLog(
                 project_id=project_id,
@@ -1402,7 +1402,7 @@ def send_project_email(project_id):
             )
             db.session.add(email_log)
             db.session.commit()
-            flash(f'Failed to send email: {str(e)}')
+            flash(f'Failed to send email: {str(e)}', 'error')
         
         return redirect(url_for('teacher_sharing'))
     
@@ -1436,7 +1436,7 @@ def send_bulk_email(project_id):
         students_with_parents = [s for s in students if s and s.parent_email]
     
     if not students_with_parents:
-        flash('No parent email available for this project')
+        flash('No parent email available for this project', 'error')
         return redirect(url_for('send_project_email', project_id=project_id))
     
     # Generate or get share code
@@ -1505,7 +1505,7 @@ def send_bulk_email(project_id):
             failed_count += 1
     
     db.session.commit()
-    flash(f'Bulk email sent! {sent_count} successful, {failed_count} failed.')
+    flash(f'Bulk email sent! {sent_count} successful, {failed_count} failed.', 'success' if failed_count == 0 else 'warning')
     return redirect(url_for('teacher_sharing'))
 
 # Error handlers
