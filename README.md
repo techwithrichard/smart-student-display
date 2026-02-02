@@ -23,6 +23,15 @@ A fullstack web application built with Flask, HTML, and CSS that allows students
 
 ## Installation
 
+**Note:** This repository includes a pre-populated database with sample data including:
+- Default test accounts (admin, teacher, student, parent)
+- Sample classroom with subjects
+- All existing records and data
+
+When you clone this repository, you'll have access to all the existing data. The database file is located at `instance/student_projects.db`.
+
+## Installation
+
 1. Clone the repository:
 ```bash
 git clone <repository-url>

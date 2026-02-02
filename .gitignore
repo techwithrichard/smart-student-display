@@ -36,12 +36,14 @@ instance/
 .webassets-cache
 .flaskenv
 
-# SQLite Database
+# SQLite Database (exclude all except the main database)
 *.db
 *.sqlite
 *.sqlite3
 student_projects.db
 instance/*.db
+# Allow the main database to be committed
+!instance/student_projects.db
 
 # IDE
 .vscode/
