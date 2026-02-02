@@ -182,7 +182,7 @@ def teacher_required(f):
     @wraps(f)
     @login_required
     def decorated_function(*args, **kwargs):
-        if current_user.role != 'teacher':
+        if current_user.role not in ['teacher', 'staff', 'admin']:
             flash('Access denied. Teacher privileges required.')
             return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
@@ -351,8 +351,8 @@ def classroom_view(classroom_id):
     classroom = Classroom.query.get_or_404(classroom_id)
     
     # Check access
-    if current_user.role == 'teacher':
-        if classroom.teacher_id != current_user.id:
+    if current_user.role in ['teacher', 'staff', 'admin']:
+        if classroom.teacher_id != current_user.id and current_user.role != 'admin':
             flash('You do not have access to this classroom')
             return redirect(url_for('dashboard'))
     else:
@@ -631,7 +631,9 @@ def check_project_access(project):
     if project.visibility == 'private':
         return False
     if project.visibility == 'classroom':
-        if current_user.role in ['teacher', 'staff']:
+        if current_user.role in ['teacher', 'staff', 'admin']:
+            if current_user.role == 'admin':
+                return True
             return project.classroom.teacher_id == current_user.id
         enrollment = ClassroomStudent.query.filter_by(
             classroom_id=project.classroom_id,
@@ -639,7 +641,9 @@ def check_project_access(project):
         ).first()
         return enrollment is not None
     if project.visibility == 'parents':
-        if current_user.role in ['teacher', 'staff']:
+        if current_user.role in ['teacher', 'staff', 'admin']:
+            if current_user.role == 'admin':
+                return True
             return project.classroom.teacher_id == current_user.id or project.tagged_teacher_id == current_user.id
         return False
     return False
@@ -964,10 +968,10 @@ def send_project_email(project_id):
         
         # Check if project is public or if parent email matches student's parent
         student = project.student
+        if not student.parent_email:
+            flash('This student has no parent email registered. Cannot send email.')
+            return redirect(url_for('send_project_email', project_id=project_id))
         if project.visibility != 'public':
-            if not student.parent_email:
-                flash('This student has no parent email registered. Cannot send email.')
-                return redirect(url_for('send_project_email', project_id=project_id))
             if parent_email.lower() != student.parent_email.lower():
                 flash('You can only send this project to the student\'s registered parent email. This project is not public.')
                 return redirect(url_for('send_project_email', project_id=project_id))
