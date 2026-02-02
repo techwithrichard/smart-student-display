@@ -37,7 +37,7 @@
                     {% if student_submission.submitted_at %}
                         <p>Submitted: {{ student_submission.submitted_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
                         {% if student_submission.submitted_at > assignment.deadline %}
-                            <p class="late-submission">⚠️ Late Submission: {{ calculate_late_time(assignment.deadline, student_submission.submitted_at) }}</p>
+                            <p class="late-submission">Late Submission: {{ calculate_late_time(assignment.deadline, student_submission.submitted_at) }}</p>
                         {% else %}
                             <p class="on-time">Submitted on time</p>
                         {% endif %}
