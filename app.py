@@ -1,10 +1,12 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, abort
+from flask import Flask, render_template, request, redirect, url_for, flash, session, abort, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
+import zipfile
+import shutil
 from functools import wraps
 
 app = Flask(__name__)
@@ -12,8 +14,9 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-i
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///student_projects.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
-ALLOWED_EXTENSIONS = {'html'}
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size for zip files
+ALLOWED_EXTENSIONS = {'html', 'zip', 'css', 'js', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'json', 'txt', 'ico'}
+ALLOWED_ZIP_EXTENSIONS = {'zip'}
 
 db = SQLAlchemy(app)
 login_manager = LoginManager()
@@ -59,7 +62,9 @@ class Project(db.Model):
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     project_type = db.Column(db.String(20), nullable=False)  # html or scratch
-    file_path = db.Column(db.String(255))  # For HTML uploads
+    file_path = db.Column(db.String(255))  # For single HTML file (backward compatibility)
+    project_dir = db.Column(db.String(255))  # For multi-file projects (directory path)
+    main_file = db.Column(db.String(255))  # Main entry point (index.html, etc.)
     scratch_link = db.Column(db.String(500))  # For Scratch links
     student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     classroom_id = db.Column(db.Integer, db.ForeignKey('classroom.id'), nullable=False)
@@ -91,6 +96,48 @@ def load_user(user_id):
 # Helper functions
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def allowed_zip_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_ZIP_EXTENSIONS
+
+def extract_zip_project(zip_path, extract_to):
+    # Extract zip file and maintain directory structure
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        zip_ref.extractall(extract_to)
+    # Find main HTML file (index.html, main.html, or first .html file)
+    html_files = []
+    for root, dirs, files in os.walk(extract_to):
+        for file in files:
+            if file.endswith('.html'):
+                rel_path = os.path.relpath(os.path.join(root, file), extract_to)
+                html_files.append(rel_path)
+    # Prefer index.html, then main.html, then first HTML file
+    main_file = None
+    for preferred in ['index.html', 'main.html', 'home.html']:
+        if preferred in html_files:
+            main_file = preferred
+            break
+    if not main_file and html_files:
+        main_file = html_files[0]
+    return main_file
+
+def get_project_files(project_dir):
+    # Get all files in project directory with their relative paths
+    files = []
+    if not os.path.exists(project_dir):
+        return files
+    for root, dirs, filenames in os.walk(project_dir):
+        for filename in filenames:
+            file_path = os.path.join(root, filename)
+            rel_path = os.path.relpath(file_path, project_dir)
+            file_size = os.path.getsize(file_path)
+            files.append({
+                'path': rel_path.replace('\\', '/'),
+                'name': filename,
+                'size': file_size,
+                'is_html': filename.endswith('.html')
+            })
+    return sorted(files, key=lambda x: (not x['is_html'], x['path']))
 
 def teacher_required(f):
     @wraps(f)
@@ -298,23 +345,101 @@ def upload_project():
         )
         
         if project_type == 'html':
-            if 'file' not in request.files:
-                flash('No file uploaded')
-                return redirect(url_for('upload_project'))
+            upload_type = request.form.get('upload_type', 'single')  # single, zip, or multiple
             
-            file = request.files['file']
-            if file.filename == '':
-                flash('No file selected')
-                return redirect(url_for('upload_project'))
+            if upload_type == 'zip':
+                # Handle zip file upload
+                if 'zip_file' not in request.files:
+                    flash('No zip file uploaded')
+                    return redirect(url_for('upload_project'))
+                
+                zip_file = request.files['zip_file']
+                if zip_file.filename == '':
+                    flash('No zip file selected')
+                    return redirect(url_for('upload_project'))
+                
+                if zip_file and allowed_zip_file(zip_file.filename):
+                    # Create project directory
+                    project_dir_name = f"project_{current_user.id}_{int(datetime.now().timestamp())}"
+                    project_dir_path = os.path.join(app.config['UPLOAD_FOLDER'], project_dir_name)
+                    os.makedirs(project_dir_path, exist_ok=True)
+                    
+                    # Save and extract zip
+                    zip_filename = secure_filename(zip_file.filename)
+                    zip_path = os.path.join(project_dir_path, zip_filename)
+                    zip_file.save(zip_path)
+                    
+                    # Extract zip file
+                    main_file = extract_zip_project(zip_path, project_dir_path)
+                    
+                    # Clean up zip file after extraction
+                    os.remove(zip_path)
+                    
+                    if main_file:
+                        project.project_dir = project_dir_name
+                        project.main_file = main_file
+                    else:
+                        flash('No HTML files found in zip archive')
+                        shutil.rmtree(project_dir_path)
+                        return redirect(url_for('upload_project'))
+                else:
+                    flash('Invalid file type. Please upload a ZIP file.')
+                    return redirect(url_for('upload_project'))
             
-            if file and allowed_file(file.filename):
-                filename = secure_filename(f"{current_user.id}_{datetime.now().timestamp()}_{file.filename}")
-                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                file.save(filepath)
-                project.file_path = filename
+            elif upload_type == 'multiple':
+                # Handle multiple file upload
+                files = request.files.getlist('files[]')
+                if not files or all(f.filename == '' for f in files):
+                    flash('No files selected')
+                    return redirect(url_for('upload_project'))
+                
+                # Create project directory
+                project_dir_name = f"project_{current_user.id}_{int(datetime.now().timestamp())}"
+                project_dir_path = os.path.join(app.config['UPLOAD_FOLDER'], project_dir_name)
+                os.makedirs(project_dir_path, exist_ok=True)
+                
+                html_files = []
+                for file in files:
+                    if file.filename and allowed_file(file.filename):
+                        # Maintain original filename
+                        filename = secure_filename(file.filename)
+                        filepath = os.path.join(project_dir_path, filename)
+                        file.save(filepath)
+                        if filename.endswith('.html'):
+                            html_files.append(filename)
+                
+                if html_files:
+                    # Use first HTML file as main, or prefer index.html
+                    if 'index.html' in html_files:
+                        main_file = 'index.html'
+                    else:
+                        main_file = html_files[0]
+                    project.project_dir = project_dir_name
+                    project.main_file = main_file
+                else:
+                    flash('No HTML files found in upload')
+                    shutil.rmtree(project_dir_path)
+                    return redirect(url_for('upload_project'))
+            
             else:
-                flash('Invalid file type. Only HTML files are allowed.')
-                return redirect(url_for('upload_project'))
+                # Handle single file upload (backward compatibility)
+                if 'file' not in request.files:
+                    flash('No file uploaded')
+                    return redirect(url_for('upload_project'))
+                
+                file = request.files['file']
+                if file.filename == '':
+                    flash('No file selected')
+                    return redirect(url_for('upload_project'))
+                
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(f"{current_user.id}_{datetime.now().timestamp()}_{file.filename}")
+                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    file.save(filepath)
+                    project.file_path = filename
+                else:
+                    flash('Invalid file type. Allowed: HTML, CSS, JS, images, and other web assets.')
+                    return redirect(url_for('upload_project'))
         
         elif project_type == 'scratch':
             scratch_link = request.form.get('scratch_link')
@@ -355,7 +480,50 @@ def view_project(project_id):
             flash('You are not enrolled in this classroom')
             return redirect(url_for('dashboard'))
     
-    return render_template('view_project.html', project=project)
+    # Get project files if it's a multi-file project
+    project_files = []
+    if project.project_dir:
+        project_dir_path = os.path.join(app.config['UPLOAD_FOLDER'], project.project_dir)
+        project_files = get_project_files(project_dir_path)
+    
+    return render_template('view_project.html', project=project, project_files=project_files)
+
+@app.route('/project/<int:project_id>/file/<path:file_path>')
+@login_required
+def project_file(project_id, file_path):
+    # Serve files from project directory
+    project = Project.query.get_or_404(project_id)
+    
+    # Check access
+    if current_user.role == 'teacher':
+        if project.classroom.teacher_id != current_user.id:
+            abort(403)
+    else:
+        enrollment = ClassroomStudent.query.filter_by(
+            classroom_id=project.classroom_id,
+            student_id=current_user.id
+        ).first()
+        if not enrollment:
+            abort(403)
+    
+    if not project.project_dir:
+        abort(404)
+    
+    project_dir_path = os.path.join(app.config['UPLOAD_FOLDER'], project.project_dir)
+    # Security: prevent directory traversal
+    safe_path = os.path.normpath(file_path).lstrip('/')
+    if '..' in safe_path or safe_path.startswith('/'):
+        abort(403)
+    
+    file_full_path = os.path.join(project_dir_path, safe_path)
+    if not os.path.exists(file_full_path) or not os.path.isfile(file_full_path):
+        abort(404)
+    
+    # Ensure file is within project directory
+    if not os.path.commonpath([project_dir_path, file_full_path]) == project_dir_path:
+        abort(403)
+    
+    return send_from_directory(project_dir_path, safe_path)
 
 @app.route('/project/<int:project_id>/like', methods=['POST'])
 @login_required
