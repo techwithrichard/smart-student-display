@@ -481,7 +481,19 @@ def upload_project():
         title = request.form.get('title')
         description = request.form.get('description')
         project_type = request.form.get('project_type')
+        assignment_id = request.form.get('assignment_id')
         classroom_id = request.form.get('classroom_id')
+        
+        # Determine classroom and subject from assignment or direct selection
+        if assignment_id:
+            assignment = Assignment.query.get(assignment_id)
+            if not assignment:
+                flash('Invalid assignment')
+                return redirect(url_for('upload_project'))
+            classroom_id = assignment.subject.classroom_id
+            subject_id = assignment.subject_id
+        else:
+            subject_id = None
         
         # Verify classroom access
         enrollment = ClassroomStudent.query.filter_by(
@@ -502,8 +514,11 @@ def upload_project():
             project_type=project_type,
             student_id=current_user.id,
             classroom_id=classroom_id,
+            subject_id=subject_id,
+            assignment_id=assignment_id if assignment_id else None,
             tagged_teacher_id=tagged_teacher_id,
-            visibility='classroom'  # Default visibility
+            visibility='classroom',  # Default visibility
+            is_student_created=(assignment_id is None)
         )
         
         if project_type == 'html':
@@ -619,29 +634,16 @@ def upload_project():
                 screenshot.save(filepath)
                 project.screenshot_path = filename
         
-        # Check if this is an assignment submission
-        assignment_id = request.form.get('assignment_id')
+        # Set submission time for assignments
         if assignment_id:
             assignment = Assignment.query.get(assignment_id)
             if assignment:
-                project.assignment_id = assignment_id
-                project.is_student_created = False
-                project.subject_id = assignment.subject_id
                 project.submitted_at = datetime.utcnow()
                 # Check if late
                 if project.submitted_at > assignment.deadline:
                     flash(f'Project uploaded successfully! Note: This submission is late.')
                 else:
                     flash('Project uploaded successfully!')
-            else:
-                flash('Invalid assignment')
-                return redirect(url_for('upload_project'))
-        else:
-            project.is_student_created = True
-            subject_id = request.form.get('subject_id')
-            if subject_id:
-                project.subject_id = subject_id
-            flash('Project uploaded successfully!')
         
         db.session.add(project)
         db.session.commit()

@@ -17,10 +17,10 @@
         {% if assignments %}
             <div class="assignments-list">
                 {% for assignment in assignments %}
-                    <div class="assignment-card {% if assignment.deadline < datetime.utcnow() %}past-deadline{% endif %}">
+                    <div class="assignment-card {% if assignment.deadline.replace(tzinfo=None) < datetime.utcnow().replace(tzinfo=None) %}past-deadline{% endif %}">
                         <div class="assignment-header">
                             <h3>{{ assignment.title }}</h3>
-                            <span class="deadline-badge {% if assignment.deadline < datetime.utcnow() %}deadline-passed{% else %}deadline-upcoming{% endif %}">
+                            <span class="deadline-badge {% if assignment.deadline.replace(tzinfo=None) < datetime.utcnow().replace(tzinfo=None) %}deadline-passed{% else %}deadline-upcoming{% endif %}">
                                 Deadline: {{ assignment.deadline.strftime('%B %d, %Y at %I:%M %p') }}
                             </span>
                         </div>

@@ -11,9 +11,9 @@
             Classroom: {{ subject.classroom.name }} | 
             Teacher: {{ assignment.teacher.username }}
         </p>
-        <div class="deadline-info {% if assignment.deadline < datetime.utcnow() %}deadline-passed{% else %}deadline-upcoming{% endif %}">
+        <div class="deadline-info {% if assignment.deadline.replace(tzinfo=None) < datetime.utcnow().replace(tzinfo=None) %}deadline-passed{% else %}deadline-upcoming{% endif %}">
             <strong>Deadline:</strong> {{ assignment.deadline.strftime('%B %d, %Y at %I:%M %p') }}
-            {% if assignment.deadline < datetime.utcnow() %}
+            {% if assignment.deadline.replace(tzinfo=None) < datetime.utcnow().replace(tzinfo=None) %}
                 <span class="deadline-status">(Passed)</span>
             {% else %}
                 <span class="deadline-status">(Upcoming)</span>
