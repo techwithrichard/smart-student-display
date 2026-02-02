@@ -1524,9 +1524,9 @@ def request_entity_too_large(error):
 
 if __name__ == '__main__':
     with app.app_context():
-        # Drop all tables and recreate (for development - removes existing data)
-        # Comment out the next 2 lines if you want to preserve data
-        db.drop_all()
+        # Create tables if they don't exist (preserves existing data)
+        # Uncomment the next 2 lines if you want to reset the database during development
+        # db.drop_all()
         db.create_all()
         
         # Create default test users if they don't exist
