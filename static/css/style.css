@@ -1277,6 +1277,125 @@ body {
     border-radius: 5px;
 }
 
+.test-accounts {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: var(--light-bg);
+    border-radius: 10px;
+    border: 2px dashed var(--primary-color);
+}
+
+.test-accounts h3 {
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.test-accounts-note {
+    color: var(--text-light);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.test-account-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.test-account-item {
+    padding: 0.75rem;
+    background: white;
+    border-radius: 5px;
+    font-family: monospace;
+    font-size: 0.9rem;
+    border-left: 3px solid var(--primary-color);
+}
+
+.notifications-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.notification-item {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid var(--border-color);
+    position: relative;
+    transition: all 0.3s;
+}
+
+.notification-item.unread {
+    border-left-color: var(--primary-color);
+    background: #f0f7ff;
+}
+
+.notification-item:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+}
+
+.notification-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 1rem;
+}
+
+.notification-header h3 {
+    color: var(--primary-color);
+    flex: 1;
+}
+
+.notification-date {
+    color: var(--text-light);
+    font-size: 0.85rem;
+}
+
+.notification-content {
+    margin-bottom: 1rem;
+}
+
+.notification-content p {
+    margin-bottom: 0.5rem;
+    color: var(--text-dark);
+}
+
+.project-description {
+    color: var(--text-light);
+    font-style: italic;
+}
+
+.notification-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.unread-indicator {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: var(--accent-color);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.notification-badge {
+    background: var(--accent-color);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
 @media (max-width: 768px) {
     .stats-grid {
         grid-template-columns: 1fr;

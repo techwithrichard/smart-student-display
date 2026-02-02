@@ -45,7 +45,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(20), default='student')  # student, teacher, staff, or admin
+    role = db.Column(db.String(20), default='student')  # student, teacher, staff, parent, or admin
     parent_email = db.Column(db.String(120), nullable=True)  # Parent email for students (required for students)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     classrooms = db.relationship('Classroom', backref='teacher', lazy=True)
@@ -635,6 +635,13 @@ def check_project_access(project):
             if current_user.role == 'admin':
                 return True
             return project.classroom.teacher_id == current_user.id
+        if current_user.role == 'parent':
+            # Parents can view if they have a notification for this project
+            notification = ParentNotification.query.filter_by(
+                project_id=project.id,
+                parent_id=current_user.id
+            ).first()
+            return notification is not None
         enrollment = ClassroomStudent.query.filter_by(
             classroom_id=project.classroom_id,
             student_id=current_user.id
@@ -645,6 +652,13 @@ def check_project_access(project):
             if current_user.role == 'admin':
                 return True
             return project.classroom.teacher_id == current_user.id or project.tagged_teacher_id == current_user.id
+        if current_user.role == 'parent':
+            # Parents can view if they have a notification for this project
+            notification = ParentNotification.query.filter_by(
+                project_id=project.id,
+                parent_id=current_user.id
+            ).first()
+            return notification is not None
         return False
     return False
 
@@ -1103,6 +1117,19 @@ def send_bulk_email(project_id):
                 status='sent'
             )
             db.session.add(email_log)
+            
+            # Create parent notification
+            parent_user = User.query.filter_by(email=student.parent_email, role='parent').first()
+            if parent_user:
+                notification = ParentNotification(
+                    project_id=project_id,
+                    parent_id=parent_user.id,
+                    teacher_id=current_user.id,
+                    student_id=student.id,
+                    share_code=share_code
+                )
+                db.session.add(notification)
+            
             sent_count += 1
         except Exception as e:
             email_log = EmailLog(
@@ -1139,18 +1166,28 @@ if __name__ == '__main__':
         db.drop_all()
         db.create_all()
         
-        # Create admin user if it doesn't exist
-        admin = User.query.filter_by(username='richard', email='richard@gmail.com').first()
-        if not admin:
-            admin = User(
-                username='richard',
-                email='richard@gmail.com',
-                password_hash=generate_password_hash('richard'),
-                role='admin'
-            )
-            db.session.add(admin)
-            db.session.commit()
-            print("Admin user 'richard' created with password 'richard'")
+        # Create default test users if they don't exist
+        default_users = [
+            {'username': 'richard', 'email': 'richard@gmail.com', 'password': 'richard', 'role': 'admin'},
+            {'username': 'teacher', 'email': 'teacher@gmail.com', 'password': 'teacher', 'role': 'teacher'},
+            {'username': 'student', 'email': 'student@gmail.com', 'password': 'student', 'role': 'student', 'parent_email': 'parent@gmail.com'},
+            {'username': 'parent', 'email': 'parent@gmail.com', 'password': 'parent', 'role': 'parent'}
+        ]
+        
+        for user_data in default_users:
+            existing = User.query.filter_by(email=user_data['email']).first()
+            if not existing:
+                user = User(
+                    username=user_data['username'],
+                    email=user_data['email'],
+                    password_hash=generate_password_hash(user_data['password']),
+                    role=user_data['role'],
+                    parent_email=user_data.get('parent_email')
+                )
+                db.session.add(user)
+                print(f"Created {user_data['role']} user: {user_data['username']} / {user_data['email']} : {user_data['password']}")
+        
+        db.session.commit()
         print("Database initialized successfully")
         print("Starting server on http://127.0.0.1:5000")
     app.run(debug=True, host='127.0.0.1', port=5000)
