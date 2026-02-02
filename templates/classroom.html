@@ -43,6 +43,29 @@
             {% endif %}
             
             <div class="section-header">
+                <h2>Subjects</h2>
+                {% if current_user.role == 'admin' %}
+                    <a href="{{ url_for('add_subject', classroom_id=classroom.id) }}" class="btn btn-primary">Add Subject</a>
+                {% endif %}
+            </div>
+            
+            {% if subjects %}
+                <div class="subjects-grid">
+                    {% for subject in subjects %}
+                        <div class="subject-card">
+                            <h3>{{ subject.name }}</h3>
+                            <p class="subject-teacher">Teacher: {{ subject.teacher.username }}</p>
+                            <a href="{{ url_for('view_subject', subject_id=subject.id) }}" class="btn btn-secondary">View Subject</a>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <p>No subjects yet.{% if current_user.role == 'admin' %} Add subjects to organize assignments!{% endif %}</p>
+                </div>
+            {% endif %}
+            
+            <div class="section-header">
                 <h2>Challenges</h2>
                 {% if current_user.role == 'teacher' %}
                     <a href="{{ url_for('create_challenge') }}" class="btn btn-primary">Create Challenge</a>

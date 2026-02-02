@@ -61,6 +61,7 @@ class Classroom(db.Model):
     students = db.relationship('ClassroomStudent', backref='classroom', lazy=True, cascade='all, delete-orphan')
     projects = db.relationship('Project', backref='classroom', lazy=True)
     challenges = db.relationship('Challenge', backref='classroom', lazy=True)
+    subjects = db.relationship('Subject', backref='classroom', lazy=True, cascade='all, delete-orphan')
 
 class ClassroomStudent(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -70,6 +71,26 @@ class ClassroomStudent(db.Model):
     points = db.Column(db.Integer, default=0)
     student = db.relationship('User', backref='enrollments')
     db.UniqueConstraint('classroom_id', 'student_id')
+
+class Subject(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    classroom_id = db.Column(db.Integer, db.ForeignKey('classroom.id'), nullable=False)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    teacher = db.relationship('User', foreign_keys=[teacher_id], backref='taught_subjects')
+    assignments = db.relationship('Assignment', backref='subject', lazy=True, cascade='all, delete-orphan')
+
+class Assignment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    subject_id = db.Column(db.Integer, db.ForeignKey('subject.id'), nullable=False)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    deadline = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    teacher = db.relationship('User', foreign_keys=[teacher_id], backref='created_assignments')
+    submissions = db.relationship('Project', backref='assignment', lazy=True, foreign_keys='Project.assignment_id')
 
 class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -83,12 +104,17 @@ class Project(db.Model):
     screenshot_path = db.Column(db.String(255))  # Screenshot image of the project
     student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     classroom_id = db.Column(db.Integer, db.ForeignKey('classroom.id'), nullable=False)
+    subject_id = db.Column(db.Integer, db.ForeignKey('subject.id'), nullable=True)  # Optional: link to subject
+    assignment_id = db.Column(db.Integer, db.ForeignKey('assignment.id'), nullable=True)  # If this is a submission for an assignment
     tagged_teacher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Teacher tagged to project
     visibility = db.Column(db.String(20), default='classroom')  # classroom, public, private, parents
+    is_student_created = db.Column(db.Boolean, default=True)  # True if student created, False if assignment submission
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    submitted_at = db.Column(db.DateTime, nullable=True)  # When student submitted (for assignments)
     likes = db.Column(db.Integer, default=0)
     views = db.Column(db.Integer, default=0)
     tagged_teacher = db.relationship('User', foreign_keys=[tagged_teacher_id], backref='tagged_projects')
+    subject = db.relationship('Subject', backref='projects')
 
 class Challenge(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -305,12 +331,16 @@ def dashboard():
         classrooms = Classroom.query.filter_by(teacher_id=current_user.id).all()
         return render_template('teacher_dashboard.html', classrooms=classrooms)
     else:
-        # Get classrooms student is enrolled in
+        # Enforce that students must belong to a class
         enrollments = ClassroomStudent.query.filter_by(student_id=current_user.id).all()
+        if not enrollments:
+            flash('You must be enrolled in a classroom. Please contact your teacher or admin.', 'warning')
+            return render_template('student_dashboard.html', classrooms=[], projects=[], no_classroom=True)
+        
         classroom_ids = [e.classroom_id for e in enrollments]
         classrooms = Classroom.query.filter(Classroom.id.in_(classroom_ids)).all()
         projects = Project.query.filter_by(student_id=current_user.id).all()
-        return render_template('student_dashboard.html', classrooms=classrooms, projects=projects)
+        return render_template('student_dashboard.html', classrooms=classrooms, projects=projects, no_classroom=False)
 
 @app.route('/classroom/create', methods=['GET', 'POST'])
 @admin_required
@@ -589,16 +619,50 @@ def upload_project():
                 screenshot.save(filepath)
                 project.screenshot_path = filename
         
+        # Check if this is an assignment submission
+        assignment_id = request.form.get('assignment_id')
+        if assignment_id:
+            assignment = Assignment.query.get(assignment_id)
+            if assignment:
+                project.assignment_id = assignment_id
+                project.is_student_created = False
+                project.subject_id = assignment.subject_id
+                project.submitted_at = datetime.utcnow()
+                # Check if late
+                if project.submitted_at > assignment.deadline:
+                    flash(f'Project uploaded successfully! Note: This submission is late.')
+                else:
+                    flash('Project uploaded successfully!')
+            else:
+                flash('Invalid assignment')
+                return redirect(url_for('upload_project'))
+        else:
+            project.is_student_created = True
+            subject_id = request.form.get('subject_id')
+            if subject_id:
+                project.subject_id = subject_id
+            flash('Project uploaded successfully!')
+        
         db.session.add(project)
         db.session.commit()
-        flash('Project uploaded successfully!')
+        
+        if assignment_id:
+            return redirect(url_for('view_assignment', assignment_id=assignment_id))
         return redirect(url_for('classroom_view', classroom_id=classroom_id))
     
     # Get student's classrooms
     enrollments = ClassroomStudent.query.filter_by(student_id=current_user.id).all()
+    if not enrollments:
+        flash('You must be enrolled in a classroom to upload projects')
+        return redirect(url_for('dashboard'))
+    
     classroom_ids = [e.classroom_id for e in enrollments]
     classrooms = Classroom.query.filter(Classroom.id.in_(classroom_ids)).all()
-    return render_template('upload_project.html', classrooms=classrooms)
+    
+    # Get available assignments for student's classrooms
+    assignments = Assignment.query.join(Subject).filter(Subject.classroom_id.in_(classroom_ids)).all()
+    
+    return render_template('upload_project.html', classrooms=classrooms, assignments=assignments)
 
 @app.route('/project/<int:project_id>')
 @login_required
@@ -683,6 +747,21 @@ def view_code(project_id, file_path):
     except Exception as e:
         flash('Error reading file: ' + str(e))
         return redirect(url_for('view_project', project_id=project_id))
+
+def calculate_late_time(deadline, submitted_at):
+    """Calculate how late a submission is"""
+    if submitted_at <= deadline:
+        return None
+    delta = submitted_at - deadline
+    hours = delta.total_seconds() / 3600
+    days = delta.days
+    if days > 0:
+        return f"{days} day{'s' if days > 1 else ''} {int(hours % 24)} hour{'s' if int(hours % 24) != 1 else ''} late"
+    elif hours >= 1:
+        return f"{int(hours)} hour{'s' if int(hours) > 1 else ''} late"
+    else:
+        minutes = int(delta.total_seconds() / 60)
+        return f"{minutes} minute{'s' if minutes > 1 else ''} late"
 
 def check_project_access(project):
     # Check if user has access to project based on visibility settings
@@ -1327,6 +1406,47 @@ if __name__ == '__main__':
                 print(f"Created {user_data['role']} user: {user_data['username']} / {user_data['email']} : {user_data['password']}")
         
         db.session.commit()
+        
+        # Create sample classroom and subjects
+        sample_classroom = Classroom.query.filter_by(code='SAMPLE01').first()
+        if not sample_classroom:
+            teacher_user = User.query.filter_by(email='teacher@gmail.com').first()
+            if teacher_user:
+                sample_classroom = Classroom(
+                    name='Sample Classroom',
+                    code='SAMPLE01',
+                    teacher_id=teacher_user.id
+                )
+                db.session.add(sample_classroom)
+                db.session.commit()
+                
+                # Add sample subjects
+                subjects_data = [
+                    {'name': 'Mathematics', 'teacher_id': teacher_user.id},
+                    {'name': 'Science', 'teacher_id': teacher_user.id},
+                    {'name': 'Computer Science', 'teacher_id': teacher_user.id}
+                ]
+                
+                for subj_data in subjects_data:
+                    subject = Subject(
+                        name=subj_data['name'],
+                        classroom_id=sample_classroom.id,
+                        teacher_id=subj_data['teacher_id']
+                    )
+                    db.session.add(subject)
+                
+                # Add student to sample classroom
+                student_user = User.query.filter_by(email='student@gmail.com').first()
+                if student_user:
+                    enrollment = ClassroomStudent(
+                        classroom_id=sample_classroom.id,
+                        student_id=student_user.id
+                    )
+                    db.session.add(enrollment)
+                
+                db.session.commit()
+                print("Sample classroom and subjects created successfully")
+        
         print("Database initialized successfully")
         print("Starting server on http://127.0.0.1:5000")
     app.run(debug=True, host='127.0.0.1', port=5000)

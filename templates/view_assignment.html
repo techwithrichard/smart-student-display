@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}{{ assignment.title }} - {{ subject.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="assignment-header">
+        <h1>{{ assignment.title }}</h1>
+        <p class="assignment-meta">
+            Subject: <strong>{{ subject.name }}</strong> | 
+            Classroom: {{ subject.classroom.name }} | 
+            Teacher: {{ assignment.teacher.username }}
+        </p>
+        <div class="deadline-info {% if assignment.deadline < datetime.utcnow() %}deadline-passed{% else %}deadline-upcoming{% endif %}">
+            <strong>Deadline:</strong> {{ assignment.deadline.strftime('%B %d, %Y at %I:%M %p') }}
+            {% if assignment.deadline < datetime.utcnow() %}
+                <span class="deadline-status">(Passed)</span>
+            {% else %}
+                <span class="deadline-status">(Upcoming)</span>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if assignment.description %}
+        <div class="assignment-description-box">
+            <h2>Description</h2>
+            <p>{{ assignment.description }}</p>
+        </div>
+    {% endif %}
+    
+    {% if current_user.role == 'student' %}
+        <div class="student-assignment-section">
+            {% if student_submission %}
+                <div class="submission-status submitted">
+                    <h3>Your Submission</h3>
+                    <p>You have submitted: <a href="{{ url_for('view_project', project_id=student_submission.id) }}">{{ student_submission.title }}</a></p>
+                    {% if student_submission.submitted_at %}
+                        <p>Submitted: {{ student_submission.submitted_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                        {% if student_submission.submitted_at > assignment.deadline %}
+                            <p class="late-submission">⚠️ Late Submission: {{ calculate_late_time(assignment.deadline, student_submission.submitted_at) }}</p>
+                        {% else %}
+                            <p class="on-time">✓ Submitted on time</p>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            {% else %}
+                <div class="submission-status not-submitted">
+                    <h3>Submit Your Project</h3>
+                    <p>Upload your project for this assignment. Make sure to submit before the deadline!</p>
+                    <a href="{{ url_for('upload_project') }}?assignment_id={{ assignment.id }}" class="btn btn-primary">Upload Project</a>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+    
+    {% if current_user.role in ['teacher', 'admin'] and (subject.teacher_id == current_user.id or current_user.role == 'admin') %}
+        <div class="submissions-section">
+            <h2>Student Submissions ({{ submissions|length }})</h2>
+            {% if submissions %}
+                <div class="submissions-table">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Project Title</th>
+                                <th>Submitted At</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sub_data in submissions %}
+                                <tr class="{% if sub_data.is_late %}late-row{% endif %}">
+                                    <td>{{ sub_data.project.student.username }}</td>
+                                    <td><a href="{{ url_for('view_project', project_id=sub_data.project.id) }}">{{ sub_data.project.title }}</a></td>
+                                    <td>{{ sub_data.project.submitted_at.strftime('%B %d, %Y at %I:%M %p') if sub_data.project.submitted_at else 'N/A' }}</td>
+                                    <td>
+                                        {% if sub_data.is_late %}
+                                            <span class="late-badge">{{ sub_data.late_time }}</span>
+                                        {% else %}
+                                            <span class="on-time-badge">On Time</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('view_project', project_id=sub_data.project.id) }}" class="btn btn-small">View</a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <p>No submissions yet.</p>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

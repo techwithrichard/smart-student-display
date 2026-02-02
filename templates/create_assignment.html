@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Create Assignment - {{ subject.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="form-container">
+        <h1>Create Assignment</h1>
+        <p class="subject-info">Subject: <strong>{{ subject.name }}</strong> | Classroom: {{ subject.classroom.name }}</p>
+        
+        <form method="POST" action="{{ url_for('create_assignment', subject_id=subject.id) }}">
+            <div class="form-group">
+                <label for="title">Assignment Title <span class="required">*</span></label>
+                <input type="text" id="title" name="title" required placeholder="e.g., Build a Calculator">
+            </div>
+            
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" rows="5" placeholder="Describe what students need to do..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="deadline">Deadline <span class="required">*</span></label>
+                <input type="datetime-local" id="deadline" name="deadline" required>
+                <small>Set the deadline for students to submit their projects</small>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block">Create Assignment</button>
+            <a href="{{ url_for('view_subject', subject_id=subject.id) }}" class="btn btn-secondary btn-block">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

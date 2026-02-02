@@ -4,6 +4,12 @@
 
 {% block content %}
 <div class="container">
+    {% if no_classroom %}
+        <div class="alert alert-warning">
+            <h2>No Classroom Assigned</h2>
+            <p>You must be enrolled in a classroom to use this system. Please contact your teacher or admin to be added to a classroom.</p>
+        </div>
+    {% else %}
     <div class="dashboard-header">
         <h1>My Dashboard</h1>
         <a href="{{ url_for('upload_project') }}" class="btn btn-primary">Upload Project</a>
@@ -47,5 +53,6 @@
             <p class="empty-state">You haven't uploaded any projects yet. Upload one to get started!</p>
         {% endif %}
     </div>
+    {% endif %}
 </div>
 {% endblock %}

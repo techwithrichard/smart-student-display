@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Add Subject to {{ classroom.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="form-container">
+        <h1>Add Subject to {{ classroom.name }}</h1>
+        <p class="classroom-info">Classroom Code: <strong>{{ classroom.code }}</strong></p>
+        
+        <form method="POST" action="{{ url_for('add_subject', classroom_id=classroom.id) }}">
+            <div class="form-group">
+                <label for="name">Subject Name <span class="required">*</span></label>
+                <input type="text" id="name" name="name" required placeholder="e.g., Mathematics, Science">
+            </div>
+            
+            <div class="form-group">
+                <label for="teacher_id">Assign Teacher <span class="required">*</span></label>
+                <select id="teacher_id" name="teacher_id" required>
+                    <option value="">Select a teacher</option>
+                    {% for teacher in teachers %}
+                        <option value="{{ teacher.id }}">{{ teacher.username }} ({{ teacher.email }})</option>
+                    {% endfor %}
+                </select>
+                <small>Select the teacher who will teach this subject</small>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block">Add Subject</button>
+            <a href="{{ url_for('classroom_view', classroom_id=classroom.id) }}" class="btn btn-secondary btn-block">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

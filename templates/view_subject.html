@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}{{ subject.name }} - {{ subject.classroom.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="subject-header">
+        <h1>{{ subject.name }}</h1>
+        <p class="subject-meta">Classroom: {{ subject.classroom.name }} | Teacher: {{ subject.teacher.username }}</p>
+        {% if current_user.role in ['teacher', 'admin'] and (subject.teacher_id == current_user.id or current_user.role == 'admin') %}
+            <a href="{{ url_for('create_assignment', subject_id=subject.id) }}" class="btn btn-primary">Create Assignment</a>
+        {% endif %}
+    </div>
+    
+    <div class="assignments-section">
+        <h2>Assignments</h2>
+        {% if assignments %}
+            <div class="assignments-list">
+                {% for assignment in assignments %}
+                    <div class="assignment-card {% if assignment.deadline < datetime.utcnow() %}past-deadline{% endif %}">
+                        <div class="assignment-header">
+                            <h3>{{ assignment.title }}</h3>
+                            <span class="deadline-badge {% if assignment.deadline < datetime.utcnow() %}deadline-passed{% else %}deadline-upcoming{% endif %}">
+                                Deadline: {{ assignment.deadline.strftime('%B %d, %Y at %I:%M %p') }}
+                            </span>
+                        </div>
+                        {% if assignment.description %}
+                            <p class="assignment-description">{{ assignment.description }}</p>
+                        {% endif %}
+                        <div class="assignment-actions">
+                            <a href="{{ url_for('view_assignment', assignment_id=assignment.id) }}" class="btn btn-primary">View Assignment</a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <p>No assignments yet.{% if current_user.role in ['teacher', 'admin'] and (subject.teacher_id == current_user.id or current_user.role == 'admin') %} Create one to get started!{% endif %}</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

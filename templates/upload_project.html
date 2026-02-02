@@ -18,13 +18,40 @@
             </div>
             
             <div class="form-group">
+                <label>Project Type</label>
+                <div class="project-type-selector">
+                    <label class="project-type-option">
+                        <input type="radio" name="project_type_selector" value="own" checked onchange="toggleProjectType()">
+                        <span>My Own Project</span>
+                    </label>
+                    <label class="project-type-option">
+                        <input type="radio" name="project_type_selector" value="assignment" onchange="toggleProjectType()">
+                        <span>Assignment Submission</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="form-group" id="own-project-section">
                 <label for="classroom_id">Classroom</label>
-                <select id="classroom_id" name="classroom_id" required>
+                <select id="classroom_id" name="classroom_id">
                     <option value="">Select a classroom</option>
                     {% for classroom in classrooms %}
                         <option value="{{ classroom.id }}">{{ classroom.name }}</option>
                     {% endfor %}
                 </select>
+            </div>
+            
+            <div class="form-group" id="assignment-section" style="display: none;">
+                <label for="assignment_id">Assignment</label>
+                <select id="assignment_id" name="assignment_id">
+                    <option value="">Select an assignment</option>
+                    {% for assignment in assignments %}
+                        <option value="{{ assignment.id }}" data-deadline="{{ assignment.deadline.isoformat() }}">
+                            {{ assignment.title }} - {{ assignment.subject.name }} (Deadline: {{ assignment.deadline.strftime('%B %d, %Y at %I:%M %p') }})
+                        </option>
+                    {% endfor %}
+                </select>
+                <small id="deadline-warning" style="display: none; color: red;"></small>
             </div>
             
             <div class="form-group">
