@@ -318,8 +318,8 @@ def create_classroom():
 @app.route('/classroom/join', methods=['POST'])
 @login_required
 def join_classroom():
-    if current_user.role == 'teacher':
-        flash('Teachers cannot join classrooms')
+    if current_user.role in ['teacher', 'staff', 'admin']:
+        flash('Teachers and staff cannot join classrooms')
         return redirect(url_for('dashboard'))
     
     code = request.form.get('code')
@@ -691,8 +691,8 @@ def create_challenge():
 @app.route('/challenge/<int:challenge_id>/submit', methods=['POST'])
 @login_required
 def submit_challenge(challenge_id):
-    if current_user.role == 'teacher':
-        flash('Teachers cannot submit challenges')
+    if current_user.role != 'student':
+        flash('Only students can submit challenges')
         return redirect(url_for('dashboard'))
     
     challenge = Challenge.query.get_or_404(challenge_id)
