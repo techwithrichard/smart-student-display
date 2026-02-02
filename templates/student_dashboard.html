@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Student Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="dashboard-header">
+        <h1>My Dashboard</h1>
+        <a href="{{ url_for('upload_project') }}" class="btn btn-primary">Upload Project</a>
+    </div>
+    
+    <div class="dashboard-section">
+        <h2>Join Classroom</h2>
+        <form method="POST" action="{{ url_for('join_classroom') }}" class="join-form">
+            <input type="text" name="code" placeholder="Enter classroom code" required>
+            <button type="submit" class="btn btn-primary">Join</button>
+        </form>
+    </div>
+    
+    <div class="dashboard-section">
+        <h2>My Classrooms</h2>
+        {% if classrooms %}
+            <div class="classrooms-grid">
+                {% for classroom in classrooms %}
+                    <div class="classroom-card">
+                        <h3>{{ classroom.name }}</h3>
+                        <p class="classroom-code">Code: {{ classroom.code }}</p>
+                        <a href="{{ url_for('classroom_view', classroom_id=classroom.id) }}" class="btn btn-secondary">View</a>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-state">You're not enrolled in any classrooms yet. Join one using a classroom code!</p>
+        {% endif %}
+    </div>
+    
+    <div class="dashboard-section">
+        <h2>My Projects</h2>
+        {% if projects %}
+            <div class="projects-grid">
+                {% for project in projects %}
+                    <div class="project-card">
+                        <h3>{{ project.title }}</h3>
+                        <p>{{ project.description[:100] }}{% if project.description|length > 100 %}...{% endif %}</p>
+                        <div class="project-meta">
+                            <span>{{ project.project_type|upper }}</span>
+                            <span>{{ project.likes }} likes</span>
+                        </div>
+                        <a href="{{ url_for('view_project', project_id=project.id) }}" class="btn btn-secondary">View</a>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-state">You haven't uploaded any projects yet. Upload one to get started!</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

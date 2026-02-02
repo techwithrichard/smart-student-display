@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.title }} - Project{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="project-view">
+        <div class="project-info">
+            <h1>{{ project.title }}</h1>
+            <div class="project-meta-info">
+                <span>By {{ project.student.username }}</span>
+                <span>{{ project.project_type|upper }}</span>
+                <span>{{ project.created_at.strftime('%B %d, %Y') }}</span>
+            </div>
+            {% if project.description %}
+                <p class="project-description-full">{{ project.description }}</p>
+            {% endif %}
+            
+            <div class="project-stats-full">
+                <div class="stat-item">
+                    <strong>{{ project.likes }}</strong>
+                    <span>Likes</span>
+                </div>
+                <div class="stat-item">
+                    <strong>{{ project.views }}</strong>
+                    <span>Views</span>
+                </div>
+            </div>
+            
+            <div class="project-actions">
+                <form method="POST" action="{{ url_for('like_project', project_id=project.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-primary">Like Project</button>
+                </form>
+                <a href="{{ url_for('classroom_view', classroom_id=project.classroom_id) }}" class="btn btn-secondary">Back to Classroom</a>
+            </div>
+        </div>
+        
+        <div class="project-display">
+            {% if project.project_type == 'html' %}
+                <iframe src="{{ url_for('static', filename='uploads/' + project.file_path) }}" class="project-iframe"></iframe>
+            {% elif project.project_type == 'scratch' %}
+                <div class="scratch-embed">
+                    <iframe src="{{ project.scratch_link }}/embed" allowtransparency="true" width="100%" height="600" frameborder="0" scrolling="no" allowfullscreen></iframe>
+                    <a href="{{ project.scratch_link }}" target="_blank" class="btn btn-secondary">View on Scratch</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

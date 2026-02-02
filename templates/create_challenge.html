@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Create Challenge{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="form-container">
+        <h1>Create Challenge</h1>
+        <form method="POST" action="{{ url_for('create_challenge') }}">
+            <div class="form-group">
+                <label for="classroom_id">Classroom</label>
+                <select id="classroom_id" name="classroom_id" required>
+                    <option value="">Select a classroom</option>
+                    {% for classroom in classrooms %}
+                        <option value="{{ classroom.id }}">{{ classroom.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="title">Challenge Title</label>
+                <input type="text" id="title" name="title" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" rows="6" required></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="points">Points</label>
+                <input type="number" id="points" name="points" value="10" min="1" required>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block">Create Challenge</button>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-block">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="hero">
+    <div class="container">
+        <h1>Showcase Your Coding Projects</h1>
+        <p class="hero-subtitle">Upload HTML pages and Scratch links, participate in challenges, and climb the leaderboard</p>
+        <div class="hero-buttons">
+            <a href="{{ url_for('register') }}" class="btn btn-primary">Get Started</a>
+            <a href="{{ url_for('login') }}" class="btn btn-secondary">Login</a>
+        </div>
+    </div>
+</div>
+
+<div class="features">
+    <div class="container">
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3>Upload Projects</h3>
+                <p>Share your HTML creations and Scratch projects with your classmates</p>
+            </div>
+            <div class="feature-card">
+                <h3>Classroom Collaboration</h3>
+                <p>Join classrooms, view peer projects, and learn from each other</p>
+            </div>
+            <div class="feature-card">
+                <h3>Challenges</h3>
+                <p>Complete coding challenges and earn points for your submissions</p>
+            </div>
+            <div class="feature-card">
+                <h3>Leaderboard</h3>
+                <p>Compete with classmates and see who's at the top of the leaderboard</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
