@@ -128,6 +128,20 @@ class EmailLog(db.Model):
     project = db.relationship('Project', backref='email_logs')
     teacher = db.relationship('User', foreign_keys=[teacher_id])
 
+class ParentNotification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    share_code = db.Column(db.String(20), nullable=True)
+    viewed = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    project = db.relationship('Project', backref='parent_notifications')
+    parent = db.relationship('User', foreign_keys=[parent_id], backref='notifications')
+    teacher = db.relationship('User', foreign_keys=[teacher_id])
+    student = db.relationship('User', foreign_keys=[student_id])
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -262,11 +276,15 @@ def login():
         password = request.form.get('password')
         user = User.query.filter_by(username=username).first()
         
+        if not user:
+            # Try email instead
+            user = User.query.filter_by(email=username).first()
+        
         if user and check_password_hash(user.password_hash, password):
             login_user(user)
             return redirect(url_for('dashboard'))
         else:
-            flash('Invalid username or password')
+            flash('Invalid username/email or password')
     
     return render_template('login.html')
 
@@ -281,7 +299,9 @@ def logout():
 def dashboard():
     if current_user.role == 'admin':
         return redirect(url_for('admin_dashboard'))
-    elif current_user.role == 'teacher':
+    elif current_user.role == 'parent':
+        return redirect(url_for('parent_dashboard'))
+    elif current_user.role in ['teacher', 'staff']:
         classrooms = Classroom.query.filter_by(teacher_id=current_user.id).all()
         return render_template('teacher_dashboard.html', classrooms=classrooms)
     else:
@@ -961,7 +981,70 @@ def teacher_sharing():
 def view_shared_project(share_code):
     share = ProjectShare.query.filter_by(share_code=share_code).first_or_404()
     project = share.project
+    
+    # Mark notification as viewed if parent is logged in
+    if current_user.is_authenticated and current_user.role == 'parent':
+        notification = ParentNotification.query.filter_by(
+            project_id=project.id,
+            parent_id=current_user.id,
+            share_code=share_code
+        ).first()
+        if notification and not notification.viewed:
+            notification.viewed = True
+            db.session.commit()
+    
     return render_template('view_shared_project.html', project=project, share=share)
+
+# Parent dashboard
+@app.route('/parent/dashboard')
+@login_required
+def parent_dashboard():
+    if current_user.role != 'parent':
+        flash('Access denied. Parent privileges required.')
+        return redirect(url_for('dashboard'))
+    
+    # Get all notifications for this parent
+    notifications = ParentNotification.query.filter_by(parent_id=current_user.id).order_by(ParentNotification.created_at.desc()).all()
+    
+    # Get unread count
+    unread_count = ParentNotification.query.filter_by(parent_id=current_user.id, viewed=False).count()
+    
+    return render_template('parent_dashboard.html', notifications=notifications, unread_count=unread_count)
+
+@app.route('/parent/notification/<int:notification_id>/view')
+@login_required
+def view_parent_notification(notification_id):
+    if current_user.role != 'parent':
+        flash('Access denied. Parent privileges required.')
+        return redirect(url_for('dashboard'))
+    
+    notification = ParentNotification.query.get_or_404(notification_id)
+    if notification.parent_id != current_user.id:
+        flash('Access denied')
+        return redirect(url_for('parent_dashboard'))
+    
+    # Mark as viewed
+    notification.viewed = True
+    db.session.commit()
+    
+    if notification.share_code:
+        return redirect(url_for('view_shared_project', share_code=notification.share_code))
+    else:
+        return redirect(url_for('view_project', project_id=notification.project_id))
+
+@app.route('/parent/notification/<int:notification_id>/mark-read', methods=['POST'])
+@login_required
+def mark_notification_read(notification_id):
+    if current_user.role != 'parent':
+        abort(403)
+    
+    notification = ParentNotification.query.get_or_404(notification_id)
+    if notification.parent_id != current_user.id:
+        abort(403)
+    
+    notification.viewed = True
+    db.session.commit()
+    return redirect(url_for('parent_dashboard'))
 
 # Email sending routes
 @app.route('/teacher/send-email/<int:project_id>', methods=['GET', 'POST'])
@@ -1027,8 +1110,20 @@ def send_project_email(project_id):
                 status='sent'
             )
             db.session.add(email_log)
-            db.session.commit()
             
+            # Create parent notification
+            parent_user = User.query.filter_by(email=parent_email, role='parent').first()
+            if parent_user:
+                notification = ParentNotification(
+                    project_id=project_id,
+                    parent_id=parent_user.id,
+                    teacher_id=current_user.id,
+                    student_id=project.student_id,
+                    share_code=share_code
+                )
+                db.session.add(notification)
+            
+            db.session.commit()
             flash(f'Email sent successfully to {parent_email}!')
         except Exception as e:
             email_log = EmailLog(
