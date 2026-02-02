@@ -32,7 +32,8 @@ venv.bak/
 .venv/
 
 # Flask
-instance/
+instance/*
+!instance/student_projects.db
 .webassets-cache
 .flaskenv
 
@@ -41,7 +42,6 @@ instance/
 *.sqlite
 *.sqlite3
 student_projects.db
-instance/*.db
 # Allow the main database to be committed
 !instance/student_projects.db
 
