@@ -128,16 +128,6 @@ class EmailLog(db.Model):
     project = db.relationship('Project', backref='email_logs')
     teacher = db.relationship('User', foreign_keys=[teacher_id])
 
-class EmailLog(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
-    teacher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    parent_email = db.Column(db.String(120), nullable=False)
-    sent_at = db.Column(db.DateTime, default=datetime.utcnow)
-    status = db.Column(db.String(20), default='sent')  # sent, failed
-    project = db.relationship('Project', backref='email_logs')
-    teacher = db.relationship('User', foreign_keys=[teacher_id])
-
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
