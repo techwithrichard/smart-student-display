@@ -38,7 +38,7 @@ class User(UserMixin, db.Model):
     role = db.Column(db.String(20), default='student')  # student, teacher, or admin
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     classrooms = db.relationship('Classroom', backref='teacher', lazy=True)
-    projects = db.relationship('Project', backref='student', lazy=True)
+    projects = db.relationship('Project', foreign_keys='Project.student_id', backref='student', lazy=True)
     challenge_submissions = db.relationship('ChallengeSubmission', backref='student', lazy=True)
 
 class Classroom(db.Model):
