@@ -1,149 +1,221 @@
-# Student Projects Display Platform
+# Smart Student Display
 
-A fullstack web application built with Flask, HTML, and CSS that allows students to upload and showcase coding projects (HTML pages and Scratch links) in a classroom environment. The platform facilitates peer learning through project exhibitions, challenges, assignments with deadlines, and leaderboards.
+A web platform where students can upload coding projects, teachers can create assignments with deadlines, and parents can see their kids' work. Built with Flask, HTML, and CSS.
 
 **Repository**: [https://github.com/techwithrichard/smart-student-display.git](https://github.com/techwithrichard/smart-student-display.git)
 
-## Features
+## The Problem
 
-- **Role-Based Access Control**: Admin, Teacher, Student, Parent, and Staff roles with appropriate permissions
-- **Classroom Management**: Admin creates classrooms and assigns teachers. Teachers and admins can add students to classrooms
-- **Subject System**: Multiple subjects per classroom, each with assigned teachers
-- **Assignments with Deadlines**: Teachers create assignments with deadlines. Late submissions are automatically tracked
-- **Project Upload**: Students can upload single HTML files, multiple files, or entire ZIP archives with full directory structure preservation
-- **Multi-File Projects**: Support for complete web projects with HTML, CSS, JavaScript, images, and other assets
-- **Code Viewer**: View source code of uploaded projects with syntax highlighting
-- **Project Permissions**: Students can set project visibility (public, private, classroom, parents)
-- **Parent Dashboard**: Parents receive notifications when teachers share student projects
-- **Email Integration**: Teachers can send project links to parents via email
-- **Challenges**: Teachers can create coding challenges with point rewards
-- **Leaderboard**: Track student points and rankings within each classroom
-- **Color-Coded Notifications**: Green for success, red for errors, orange for warnings
-- **Responsive Design**: Modern, clean UI that works on all devices
+Teachers needed a way to:
+- See student coding projects in one place
+- Create assignments with deadlines and track late submissions
+- Share student work with parents easily
+- Organize projects by subjects and classrooms
+
+Students needed:
+- A simple way to upload HTML projects (single files or entire folders)
+- See their assignments and deadlines
+- View their classmates' work for inspiration
+- Track their progress on a leaderboard
+
+Parents wanted:
+- Easy access to see their child's projects
+- Notifications when teachers share work
+
+## The Solution
+
+I built a full-stack web app that handles all of this. Here's how it works:
+
+**For Admins:**
+- Create classrooms and assign teachers to them
+- Add subjects to classrooms (like Math, Science, CS) and assign subject teachers
+- Add students to classrooms
+- Manage all users and see everything happening in the system
+
+**For Teachers:**
+- Get assigned to classrooms and subjects by admin
+- Create assignments with deadlines - students submit projects, and the system automatically tracks if they're late (shows "2 hours late" or "1 day late", etc.)
+- Create challenges for students to earn points
+- Share student projects with parents via email
+- See all submissions in one place with late status clearly marked
+
+**For Students:**
+- Must be added to a classroom by admin/teacher (can't join on their own)
+- Upload their own creative projects OR submit projects for assignments
+- See all assignments with deadlines - the system warns if deadline passed
+- View code from other students' projects
+- Set who can see their projects (public, classroom only, parents only, private)
+- Upload screenshots if code can't be visualized
+- Track their position on the leaderboard
+
+**For Parents:**
+- Get email notifications when teachers share their child's projects
+- See all shared projects in a dashboard
+- Click links to view projects directly
+
+## Key Features
+
+- **Multi-file project uploads**: Students can upload ZIP files or multiple files - the system preserves folder structure and finds the main HTML file automatically
+- **Code viewer**: Click any file in a project to see its source code
+- **Late submission tracking**: Automatically calculates and displays how late submissions are (e.g., "3 hours late", "2 days 5 hours late")
+- **Subject-based organization**: Each classroom has multiple subjects, each with its own teacher
+- **Email integration**: Teachers can send project links to parents via email
+- **Project permissions**: Students control who sees their work
+- **Color-coded notifications**: Green for success, red for errors, orange for warnings
+- **Responsive design**: Works on desktop, tablet, and mobile
 
 ## Tech Stack
 
 - **Backend**: Flask (Python)
-- **Database**: SQLite with SQLAlchemy ORM
+- **Database**: SQLite with SQLAlchemy
 - **Frontend**: HTML5, CSS3
 - **Authentication**: Flask-Login with password hashing
+- **Email**: Flask-Mail for sending project links to parents
 
-## Installation
+## Getting Started
 
-**Note:** This repository includes a pre-populated database with sample data including:
-- Default test accounts (admin, teacher, student, parent)
-- Sample classroom with subjects
-- All existing records and data
+### Quick Setup
 
-When you clone this repository, you'll have access to all the existing data. The database file is located at `instance/student_projects.db`.
-
-**Important:** The application preserves the database by default. The `db.drop_all()` line is commented out in `app.py` to maintain existing data.
-
-1. Clone the repository:
+1. **Clone the repository:**
 ```bash
 git clone https://github.com/techwithrichard/smart-student-display.git
 cd smart-student-display
 ```
 
-2. Create a virtual environment:
+2. **Create a virtual environment:**
 ```bash
 python -m venv venv
 venv\Scripts\activate  # On Windows
+# or
+source venv/bin/activate  # On Mac/Linux
 ```
 
-3. Install dependencies:
+3. **Install dependencies:**
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Run the application:
+4. **Run the app:**
 ```bash
 python app.py
 ```
 
-5. Open your browser and navigate to `http://localhost:5000`
+5. **Open your browser:**
+Navigate to `http://localhost:5000`
 
-## Test Accounts
+### Test Accounts
 
-Use these accounts to test the application (displayed on login page):
+The app comes with pre-configured test accounts (shown on login page):
+
 - **Admin**: `richard` / `richard@gmail.com` : `richard`
 - **Teacher**: `teacher` / `teacher@gmail.com` : `teacher`
 - **Student**: `student` / `student@gmail.com` : `student`
 - **Parent**: `parent` / `parent@gmail.com` : `parent`
 
-## Usage
+The database includes a sample classroom with subjects already set up. The student account is already enrolled.
 
-### For Admins
+### Using the Project
 
-1. Create classrooms and assign teachers
-2. Add subjects to classrooms and assign subject teachers
-3. Add students to classrooms
-4. Manage all users, classrooms, and projects
+**First time setup:**
+1. Log in as admin (richard/richard)
+2. Create a classroom and assign a teacher
+3. Add subjects to the classroom
+4. Add students to the classroom
+5. Students can now upload projects or teachers can create assignments
 
-### For Teachers
+**For personal use:**
+- The database file (`instance/student_projects.db`) is included with sample data
+- All your data persists between runs (database is preserved by default)
+- You can add your own classrooms, subjects, and users
+- Email functionality requires configuring SMTP settings in environment variables (optional)
 
-1. View assigned classrooms and subjects
-2. Create assignments with deadlines for subjects
-3. Create challenges to engage students
-4. Share student projects with parents via email
-5. Monitor student submissions and track late submissions
-6. View leaderboard and student progress
-
-### For Students
-
-1. Must be enrolled in a classroom (added by admin/teacher)
-2. Upload own projects or submit assignments
-3. View assignments with deadlines and submission status
-4. Submit projects for assignments (late submissions are tracked)
-5. View and like peer projects
-6. Navigate multi-file projects using the built-in file browser
-7. Track position on the leaderboard
+**Email setup (optional):**
+If you want email notifications to work, set these environment variables:
+```
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=true
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-app-password
+MAIL_DEFAULT_SENDER=your-email@gmail.com
+```
 
 ## Project Structure
 
 ```
 smart-student-display/
-├── app.py                 # Main Flask application
-├── requirements.txt       # Python dependencies
-├── templates/            # HTML templates
+├── app.py                    # Main Flask application
+├── requirements.txt          # Python dependencies
+├── instance/
+│   └── student_projects.db   # SQLite database (included with sample data)
+├── templates/                # HTML templates
 │   ├── base.html
-│   ├── index.html
 │   ├── login.html
 │   ├── register.html
+│   ├── admin_dashboard.html
 │   ├── teacher_dashboard.html
 │   ├── student_dashboard.html
+│   ├── parent_dashboard.html
 │   ├── classroom.html
 │   ├── upload_project.html
 │   ├── view_project.html
+│   ├── view_code.html
 │   ├── create_classroom.html
-│   └── create_challenge.html
-├── static/
-│   ├── css/
-│   │   └── style.css     # Main stylesheet
-│   └── uploads/          # Uploaded HTML files
-└── README.md
+│   ├── create_challenge.html
+│   ├── create_assignment.html
+│   ├── view_subject.html
+│   ├── view_assignment.html
+│   └── ... (other templates)
+└── static/
+    ├── css/
+    │   └── style.css        # Main stylesheet
+    ├── uploads/             # Uploaded project files
+    └── screenshots/         # Project screenshots
 ```
 
-## Database Models
+## How It Works
 
-- **User**: Stores user accounts (admin, teacher, student, parent, staff) with parent email for students
-- **Classroom**: Represents a classroom created by admin with assigned teacher
-- **ClassroomStudent**: Junction table for student enrollments and points
-- **Subject**: Subjects within classrooms, each with assigned teacher
-- **Assignment**: Teacher-created assignments with deadlines for subjects
-- **Project**: Stores student projects (HTML or Scratch). Supports both student-created projects and assignment submissions. Includes visibility settings, screenshots, and late submission tracking
-- **Challenge**: Coding challenges created by teachers
-- **ChallengeSubmission**: Tracks student challenge submissions
-- **ProjectShare**: Shareable links for projects
-- **ParentNotification**: Notifications for parents when projects are shared
-- **EmailLog**: Log of emails sent to parents
+**Database Models:**
+- `User`: All users (admin, teacher, student, parent, staff) with parent email for students
+- `Classroom`: Classrooms created by admin with assigned teacher
+- `Subject`: Subjects within classrooms, each with assigned teacher
+- `Assignment`: Teacher-created assignments with deadlines
+- `Project`: Student projects (can be student-created or assignment submissions) with visibility settings
+- `ClassroomStudent`: Links students to classrooms and tracks points
+- `Challenge`: Coding challenges for students
+- `ProjectShare`: Shareable links for projects
+- `ParentNotification`: Notifications when projects are shared
+- `EmailLog`: Log of emails sent
 
-## Security Notes
+**Workflow:**
+1. Admin creates classroom → assigns teacher
+2. Admin adds subjects → assigns subject teachers
+3. Admin/teacher adds students to classroom
+4. Teacher creates assignments with deadlines
+5. Students upload projects (own projects or for assignments)
+6. System tracks late submissions automatically
+7. Teacher shares projects with parents via email
+8. Parents see notifications and can view projects
 
-- Change the `SECRET_KEY` in `app.py` before deploying to production
-- Consider using environment variables for sensitive configuration
-- Implement additional security measures for production deployment
+## Outcome
+
+The platform successfully:
+- ✅ Handles multi-file project uploads with folder structure preservation
+- ✅ Tracks assignment deadlines and calculates late submission times
+- ✅ Organizes everything by classrooms and subjects
+- ✅ Allows teachers to easily share work with parents
+- ✅ Provides clear visual feedback (color-coded messages)
+- ✅ Works on all devices with responsive design
+- ✅ Includes sample data for easy testing
+
+## Notes
+
+- The database is included with sample data - you can start using it immediately
+- Database is preserved by default (no data loss on restart)
+- Change `SECRET_KEY` in `app.py` before deploying to production
+- Email features are optional - the app works without email configuration
+- All file uploads are stored in `static/uploads/` directory
 
 ## License
 
-This project is open source and available for educational purposes.
+Open source - feel free to use this for your own projects, classrooms, or learning purposes.
