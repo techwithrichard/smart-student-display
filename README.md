@@ -37,13 +37,11 @@ A fullstack web application built with Flask, HTML, and CSS that allows students
 
 When you clone this repository, you'll have access to all the existing data. The database file is located at `instance/student_projects.db`.
 
-**Important:** The application currently recreates the database on startup (for development). If you want to preserve the included database data, comment out the `db.drop_all()` line in `app.py` before running the application.
-
-## Installation
+**Important:** The application preserves the database by default. The `db.drop_all()` line is commented out in `app.py` to maintain existing data.
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/techwithrichard/smart-student-display.git
 cd smart-student-display
 ```
 
