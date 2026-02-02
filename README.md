@@ -1,17 +1,24 @@
 # Student Projects Display Platform
 
-A fullstack web application built with Flask, HTML, and CSS that allows students to upload and showcase coding projects (HTML pages and Scratch links) in a classroom environment. The platform facilitates peer learning through project exhibitions, challenges, and leaderboards.
+A fullstack web application built with Flask, HTML, and CSS that allows students to upload and showcase coding projects (HTML pages and Scratch links) in a classroom environment. The platform facilitates peer learning through project exhibitions, challenges, assignments with deadlines, and leaderboards.
+
+**Repository**: [https://github.com/techwithrichard/smart-student-display.git](https://github.com/techwithrichard/smart-student-display.git)
 
 ## Features
 
-- **User Authentication**: Separate login/registration for students and teachers
-- **Classroom Management**: Teachers can create classrooms with unique codes for students to join
+- **Role-Based Access Control**: Admin, Teacher, Student, Parent, and Staff roles with appropriate permissions
+- **Classroom Management**: Admin creates classrooms and assigns teachers. Teachers and admins can add students to classrooms
+- **Subject System**: Multiple subjects per classroom, each with assigned teachers
+- **Assignments with Deadlines**: Teachers create assignments with deadlines. Late submissions are automatically tracked
 - **Project Upload**: Students can upload single HTML files, multiple files, or entire ZIP archives with full directory structure preservation
 - **Multi-File Projects**: Support for complete web projects with HTML, CSS, JavaScript, images, and other assets
-- **File Browser**: Interactive file browser to navigate and view all files in multi-file projects
-- **Project Gallery**: Creative display of all projects in a classroom with likes and views
+- **Code Viewer**: View source code of uploaded projects with syntax highlighting
+- **Project Permissions**: Students can set project visibility (public, private, classroom, parents)
+- **Parent Dashboard**: Parents receive notifications when teachers share student projects
+- **Email Integration**: Teachers can send project links to parents via email
 - **Challenges**: Teachers can create coding challenges with point rewards
 - **Leaderboard**: Track student points and rankings within each classroom
+- **Color-Coded Notifications**: Green for success, red for errors, orange for warnings
 - **Responsive Design**: Modern, clean UI that works on all devices
 
 ## Tech Stack
@@ -58,27 +65,41 @@ python app.py
 
 5. Open your browser and navigate to `http://localhost:5000`
 
+## Test Accounts
+
+Use these accounts to test the application (displayed on login page):
+- **Admin**: `richard` / `richard@gmail.com` : `richard`
+- **Teacher**: `teacher` / `teacher@gmail.com` : `teacher`
+- **Student**: `student` / `student@gmail.com` : `student`
+- **Parent**: `parent` / `parent@gmail.com` : `parent`
+
 ## Usage
+
+### For Admins
+
+1. Create classrooms and assign teachers
+2. Add subjects to classrooms and assign subject teachers
+3. Add students to classrooms
+4. Manage all users, classrooms, and projects
 
 ### For Teachers
 
-1. Register as a teacher
-2. Create a classroom and share the classroom code with students
+1. View assigned classrooms and subjects
+2. Create assignments with deadlines for subjects
 3. Create challenges to engage students
-4. Monitor student projects and leaderboard
+4. Share student projects with parents via email
+5. Monitor student submissions and track late submissions
+6. View leaderboard and student progress
 
 ### For Students
 
-1. Register as a student
-2. Join a classroom using the code provided by your teacher
-3. Upload projects using one of three methods:
-   - **Single HTML File**: Upload a standalone HTML file
-   - **ZIP Archive**: Upload a complete project as a ZIP file (maintains directory structure)
-   - **Multiple Files**: Select and upload multiple files at once (preserves original filenames)
-4. Submit projects to complete challenges
+1. Must be enrolled in a classroom (added by admin/teacher)
+2. Upload own projects or submit assignments
+3. View assignments with deadlines and submission status
+4. Submit projects for assignments (late submissions are tracked)
 5. View and like peer projects
 6. Navigate multi-file projects using the built-in file browser
-7. Track your position on the leaderboard
+7. Track position on the leaderboard
 
 ## Project Structure
 
@@ -107,12 +128,17 @@ smart-student-display/
 
 ## Database Models
 
-- **User**: Stores user accounts (students and teachers)
-- **Classroom**: Represents a classroom created by a teacher
+- **User**: Stores user accounts (admin, teacher, student, parent, staff) with parent email for students
+- **Classroom**: Represents a classroom created by admin with assigned teacher
 - **ClassroomStudent**: Junction table for student enrollments and points
-- **Project**: Stores student projects (HTML or Scratch). Supports both single-file and multi-file projects with directory structure
+- **Subject**: Subjects within classrooms, each with assigned teacher
+- **Assignment**: Teacher-created assignments with deadlines for subjects
+- **Project**: Stores student projects (HTML or Scratch). Supports both student-created projects and assignment submissions. Includes visibility settings, screenshots, and late submission tracking
 - **Challenge**: Coding challenges created by teachers
 - **ChallengeSubmission**: Tracks student challenge submissions
+- **ProjectShare**: Shareable links for projects
+- **ParentNotification**: Notifications for parents when projects are shared
+- **EmailLog**: Log of emails sent to parents
 
 ## Security Notes
 
