@@ -843,7 +843,11 @@ def request_entity_too_large(error):
 
 if __name__ == '__main__':
     with app.app_context():
+        # Drop all tables and recreate (for development - removes existing data)
+        # Comment out the next 2 lines if you want to preserve data
+        db.drop_all()
         db.create_all()
+        
         # Create admin user if it doesn't exist
         admin = User.query.filter_by(username='richard', email='richard@gmail.com').first()
         if not admin:
