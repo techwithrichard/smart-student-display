@@ -1208,6 +1208,35 @@ body {
     border: 2px solid var(--border-color);
 }
 
+.parent-email-info {
+    color: var(--secondary-color);
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+}
+
+.parent-email-warning {
+    color: var(--accent-color);
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+}
+
+.parent-email-indicator {
+    color: var(--text-light);
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+}
+
+.bulk-email-section {
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 2px solid var(--border-color);
+}
+
+.bulk-email-section h3 {
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
 @media (max-width: 768px) {
     .stats-grid {
         grid-template-columns: 1fr;
