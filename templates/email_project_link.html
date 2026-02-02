@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #4a90e2, #357abd);
+            color: white;
+            padding: 20px;
+            border-radius: 10px 10px 0 0;
+            text-align: center;
+        }
+        .content {
+            background: #f5f7fa;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+        }
+        .project-info {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #4a90e2;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #4a90e2;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 0.9em;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Student Project Showcase</h1>
+    </div>
+    <div class="content">
+        <p>Hello{% if student %} Parent of {{ student.username }}{% endif %},</p>
+        
+        <p>{{ teacher.username }} would like to share a student project with you:</p>
+        
+        <div class="project-info">
+            <h2>{{ project.title }}</h2>
+            <p><strong>Student:</strong> {{ project.student.username }}</p>
+            {% if project.description %}
+                <p><strong>Description:</strong> {{ project.description }}</p>
+            {% endif %}
+            <p><strong>Created:</strong> {{ project.created_at.strftime('%B %d, %Y') }}</p>
+        </div>
+        
+        {% if custom_message %}
+            <div style="background: white; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <p><strong>Message from {{ teacher.username }}:</strong></p>
+                <p>{{ custom_message }}</p>
+            </div>
+        {% endif %}
+        
+        <p>Click the button below to view the project:</p>
+        <a href="{{ share_url }}" class="button">View Project</a>
+        
+        <p>Or copy and paste this link into your browser:</p>
+        <p style="word-break: break-all; color: #4a90e2;">{{ share_url }}</p>
+        
+        <div class="footer">
+            <p>This email was sent from the Student Projects Platform</p>
+            <p>If you did not expect this email, please ignore it.</p>
+        </div>
+    </div>
+</body>
+</html>

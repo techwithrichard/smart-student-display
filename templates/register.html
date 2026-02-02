@@ -21,12 +21,29 @@
             </div>
             <div class="form-group">
                 <label for="role">I am a</label>
-                <select id="role" name="role">
+                <select id="role" name="role" onchange="toggleParentEmail()">
                     <option value="student">Student</option>
                     <option value="teacher">Teacher</option>
                 </select>
             </div>
+            <div class="form-group" id="parent-email-group" style="display: none;">
+                <label for="parent_email">Parent Email (Optional)</label>
+                <input type="email" id="parent_email" name="parent_email" placeholder="parent@example.com">
+                <small>Your parent's email address so teachers can share your projects</small>
+            </div>
             <button type="submit" class="btn btn-primary btn-block">Register</button>
+        </form>
+        <script>
+        function toggleParentEmail() {
+            const role = document.getElementById('role').value;
+            const parentGroup = document.getElementById('parent-email-group');
+            if (role === 'student') {
+                parentGroup.style.display = 'block';
+            } else {
+                parentGroup.style.display = 'none';
+            }
+        }
+        </script>
         </form>
         <p class="auth-link">Already have an account? <a href="{{ url_for('login') }}">Login here</a></p>
     </div>

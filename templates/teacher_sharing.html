@@ -18,9 +18,15 @@
                     <p>By {{ project.student.username }}</p>
                     <p>Classroom: {{ project.classroom.name }}</p>
                     <div class="project-actions">
-                        <a href="{{ url_for('share_project_with_parents', project_id=project.id) }}" class="btn btn-primary">Share</a>
+                        <a href="{{ url_for('send_project_email', project_id=project.id) }}" class="btn btn-primary">Send Email</a>
+                        <a href="{{ url_for('share_project_with_parents', project_id=project.id) }}" class="btn btn-secondary">Share Link</a>
                         <a href="{{ url_for('view_project', project_id=project.id) }}" class="btn btn-secondary">View</a>
                     </div>
+                    {% if project.student.parent_email %}
+                        <p class="parent-email-indicator">Parent email: {{ project.student.parent_email }}</p>
+                    {% else %}
+                        <p class="parent-email-warning">No parent email registered</p>
+                    {% endif %}
                 </div>
             {% endfor %}
         </div>

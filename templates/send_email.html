@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Send Project Email{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="form-container">
+        <h1>Send Project to Parent</h1>
+        <div class="project-info-share">
+            <h3>{{ project.title }}</h3>
+            <p>By {{ project.student.username }}</p>
+            {% if project.student.parent_email %}
+                <p class="parent-email-info">Student's registered parent email: {{ project.student.parent_email }}</p>
+            {% else %}
+                <p class="parent-email-warning">No parent email registered for this student</p>
+            {% endif %}
+        </div>
+        
+        <form method="POST" action="{{ url_for('send_project_email', project_id=project.id) }}">
+            <div class="form-group">
+                <label for="parent_email">Parent Email Address</label>
+                <input type="email" id="parent_email" name="parent_email" value="{{ parent_email }}" required>
+                <small>Enter the parent's email address to send the project link</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="message">Custom Message (Optional)</label>
+                <textarea id="message" name="message" rows="4" placeholder="Add a personal message to the email..."></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block">Send Email</button>
+            <a href="{{ url_for('teacher_sharing') }}" class="btn btn-secondary btn-block">Cancel</a>
+        </form>
+        
+        {% if project.student.parent_email %}
+            <div class="bulk-email-section">
+                <h3>Bulk Email</h3>
+                <p>Send this project to all parents in the classroom</p>
+                <form method="POST" action="{{ url_for('send_bulk_email', project_id=project.id) }}">
+                    <div class="form-group">
+                        <label for="bulk_message">Message for All Parents (Optional)</label>
+                        <textarea id="bulk_message" name="message" rows="3" placeholder="Add a message for all parents..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-secondary btn-block">Send to All Parents</button>
+                </form>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

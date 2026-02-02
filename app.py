@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, abort, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_mail import Mail, Message
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -16,6 +17,14 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['SCREENSHOT_FOLDER'] = 'static/screenshots'
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size for zip files
+
+# Email configuration
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() in ['true', 'on', '1']
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@studentprojects.com')
 ALLOWED_EXTENSIONS = {'html', 'zip', 'css', 'js', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'json', 'txt', 'ico'}
 ALLOWED_ZIP_EXTENSIONS = {'zip'}
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'svg'}
@@ -24,6 +33,7 @@ db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+mail = Mail(app)
 
 # Ensure upload directories exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -36,6 +46,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), default='student')  # student, teacher, or admin
+    parent_email = db.Column(db.String(120), nullable=True)  # Parent email for students
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     classrooms = db.relationship('Classroom', backref='teacher', lazy=True)
     projects = db.relationship('Project', foreign_keys='Project.student_id', backref='student', lazy=True)
@@ -106,6 +117,16 @@ class ProjectShare(db.Model):
     expires_at = db.Column(db.DateTime, nullable=True)
     project = db.relationship('Project', backref='shares')
     teacher = db.relationship('User', foreign_keys=[teacher_id], backref='shared_projects')
+
+class EmailLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    parent_email = db.Column(db.String(120), nullable=False)
+    sent_at = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(20), default='sent')  # sent, failed
+    project = db.relationship('Project', backref='email_logs')
+    teacher = db.relationship('User', foreign_keys=[teacher_id])
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -826,6 +847,155 @@ def view_shared_project(share_code):
     share = ProjectShare.query.filter_by(share_code=share_code).first_or_404()
     project = share.project
     return render_template('view_shared_project.html', project=project, share=share)
+
+# Email sending routes
+@app.route('/teacher/send-email/<int:project_id>', methods=['GET', 'POST'])
+@teacher_required
+def send_project_email(project_id):
+    project = Project.query.get_or_404(project_id)
+    if project.classroom.teacher_id != current_user.id and current_user.role != 'admin':
+        flash('You can only send emails for projects from your classrooms')
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        parent_email = request.form.get('parent_email', '').strip()
+        custom_message = request.form.get('message', '')
+        
+        if not parent_email:
+            flash('Parent email is required')
+            return redirect(url_for('send_project_email', project_id=project_id))
+        
+        # Generate or get share code
+        share = ProjectShare.query.filter_by(project_id=project_id, teacher_id=current_user.id).first()
+        if not share:
+            share_code = generate_share_code()
+            share = ProjectShare(
+                project_id=project_id,
+                teacher_id=current_user.id,
+                share_type='parents',
+                share_code=share_code
+            )
+            db.session.add(share)
+        else:
+            share_code = share.share_code
+        
+        share_url = url_for('view_shared_project', share_code=share_code, _external=True)
+        
+        # Send email
+        try:
+            msg = Message(
+                subject=f'Student Project: {project.title}',
+                recipients=[parent_email],
+                html=render_template('email_project_link.html', 
+                                   project=project, 
+                                   share_url=share_url,
+                                   teacher=current_user,
+                                   custom_message=custom_message)
+            )
+            mail.send(msg)
+            
+            # Log email
+            email_log = EmailLog(
+                project_id=project_id,
+                teacher_id=current_user.id,
+                parent_email=parent_email,
+                status='sent'
+            )
+            db.session.add(email_log)
+            db.session.commit()
+            
+            flash(f'Email sent successfully to {parent_email}!')
+        except Exception as e:
+            email_log = EmailLog(
+                project_id=project_id,
+                teacher_id=current_user.id,
+                parent_email=parent_email,
+                status='failed'
+            )
+            db.session.add(email_log)
+            db.session.commit()
+            flash(f'Failed to send email: {str(e)}')
+        
+        return redirect(url_for('teacher_sharing'))
+    
+    # Get student's parent email if available
+    student = project.student
+    parent_email = student.parent_email if student.parent_email else ''
+    
+    return render_template('send_email.html', project=project, parent_email=parent_email)
+
+@app.route('/teacher/send-bulk-email/<int:project_id>', methods=['POST'])
+@teacher_required
+def send_bulk_email(project_id):
+    project = Project.query.get_or_404(project_id)
+    if project.classroom.teacher_id != current_user.id and current_user.role != 'admin':
+        flash('You can only send emails for projects from your classrooms')
+        return redirect(url_for('dashboard'))
+    
+    # Get all students in the classroom with parent emails
+    enrollments = ClassroomStudent.query.filter_by(classroom_id=project.classroom_id).all()
+    students = [User.query.get(e.student_id) for e in enrollments]
+    students_with_parents = [s for s in students if s and s.parent_email]
+    
+    if not students_with_parents:
+        flash('No students in this classroom have parent emails registered')
+        return redirect(url_for('send_project_email', project_id=project_id))
+    
+    # Generate or get share code
+    share = ProjectShare.query.filter_by(project_id=project_id, teacher_id=current_user.id).first()
+    if not share:
+        share_code = generate_share_code()
+        share = ProjectShare(
+            project_id=project_id,
+            teacher_id=current_user.id,
+            share_type='parents',
+            share_code=share_code
+        )
+        db.session.add(share)
+    else:
+        share_code = share.share_code
+    
+    share_url = url_for('view_shared_project', share_code=share_code, _external=True)
+    custom_message = request.form.get('message', '')
+    
+    sent_count = 0
+    failed_count = 0
+    
+    for student in students_with_parents:
+        try:
+            msg = Message(
+                subject=f'Student Project: {project.title}',
+                recipients=[student.parent_email],
+                html=render_template('email_project_link.html', 
+                                   project=project, 
+                                   share_url=share_url,
+                                   teacher=current_user,
+                                   student=student,
+                                   custom_message=custom_message)
+            )
+            mail.send(msg)
+            
+            email_log = EmailLog(
+                project_id=project_id,
+                teacher_id=current_user.id,
+                parent_email=student.parent_email,
+                status='sent'
+            )
+            db.session.add(email_log)
+            sent_count += 1
+        except Exception as e:
+            email_log = EmailLog(
+                project_id=project_id,
+                teacher_id=current_user.id,
+                parent_email=student.parent_email,
+                status='failed'
+            )
+            db.session.add(email_log)
+            failed_count += 1
+    
+    db.session.commit()
+    flash(f'Bulk email sent! {sent_count} successful, {failed_count} failed.')
+    return redirect(url_for('teacher_sharing'))
 
 # Error handlers
 @app.errorhandler(404)
