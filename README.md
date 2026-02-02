@@ -30,6 +30,8 @@ A fullstack web application built with Flask, HTML, and CSS that allows students
 
 When you clone this repository, you'll have access to all the existing data. The database file is located at `instance/student_projects.db`.
 
+**Important:** The application currently recreates the database on startup (for development). If you want to preserve the included database data, comment out the `db.drop_all()` line in `app.py` before running the application.
+
 ## Installation
 
 1. Clone the repository:
