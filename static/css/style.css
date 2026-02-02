@@ -1028,6 +1028,20 @@ body {
     color: white;
 }
 
+.role-staff {
+    background: #9b59b6;
+    color: white;
+}
+
+.required {
+    color: var(--accent-color);
+    font-weight: bold;
+}
+
+.admin-actions {
+    margin-top: 1rem;
+}
+
 .btn-small {
     padding: 0.5rem 1rem;
     font-size: 0.85rem;

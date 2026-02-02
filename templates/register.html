@@ -27,9 +27,9 @@
                 </select>
             </div>
             <div class="form-group" id="parent-email-group" style="display: none;">
-                <label for="parent_email">Parent Email (Optional)</label>
+                <label for="parent_email">Parent Email <span class="required">*</span></label>
                 <input type="email" id="parent_email" name="parent_email" placeholder="parent@example.com">
-                <small>Your parent's email address so teachers can share your projects</small>
+                <small>Required for students - your parent's email address so teachers can share your projects</small>
             </div>
             <button type="submit" class="btn btn-primary btn-block">Register</button>
         </form>
@@ -37,10 +37,13 @@
         function toggleParentEmail() {
             const role = document.getElementById('role').value;
             const parentGroup = document.getElementById('parent-email-group');
+            const parentInput = document.getElementById('parent_email');
             if (role === 'student') {
                 parentGroup.style.display = 'block';
+                parentInput.required = true;
             } else {
                 parentGroup.style.display = 'none';
+                parentInput.required = false;
             }
         }
         </script>

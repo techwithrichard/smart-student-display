@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Edit User - Admin{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="form-container">
+        <h1>Edit User</h1>
+        <form method="POST" action="{{ url_for('admin_edit_user', user_id=user.id) }}">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" value="{{ user.username }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" value="{{ user.email }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">New Password (leave blank to keep current)</label>
+                <input type="password" id="password" name="password" placeholder="Enter new password">
+            </div>
+            
+            <div class="form-group">
+                <label for="role">Role</label>
+                <select id="role" name="role" required onchange="toggleParentEmail()">
+                    <option value="student" {% if user.role == 'student' %}selected{% endif %}>Student</option>
+                    <option value="teacher" {% if user.role == 'teacher' %}selected{% endif %}>Teacher</option>
+                    <option value="staff" {% if user.role == 'staff' %}selected{% endif %}>Staff</option>
+                    <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+                </select>
+            </div>
+            
+            <div class="form-group" id="parent-email-group" style="display: {% if user.role == 'student' %}block{% else %}none{% endif %};">
+                <label for="parent_email">Parent Email <span class="required">*</span></label>
+                <input type="email" id="parent_email" name="parent_email" value="{{ user.parent_email or '' }}" placeholder="parent@example.com" {% if user.role == 'student' %}required{% endif %}>
+                <small>Required for students - parent's email address</small>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block">Update User</button>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary btn-block">Cancel</a>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleParentEmail() {
+    const role = document.getElementById('role').value;
+    const parentGroup = document.getElementById('parent-email-group');
+    const parentInput = document.getElementById('parent_email');
+    
+    if (role === 'student') {
+        parentGroup.style.display = 'block';
+        parentInput.required = true;
+    } else {
+        parentGroup.style.display = 'none';
+        parentInput.required = false;
+        if (role !== 'student') {
+            parentInput.value = '';
+        }
+    }
+}
+</script>
+{% endblock %}

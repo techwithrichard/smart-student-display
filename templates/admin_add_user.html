@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Add User - Admin{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="form-container">
+        <h1>Add New User</h1>
+        <form method="POST" action="{{ url_for('admin_add_user') }}">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="role">Role</label>
+                <select id="role" name="role" required onchange="toggleParentEmail()">
+                    <option value="student">Student</option>
+                    <option value="teacher">Teacher</option>
+                    <option value="staff">Staff</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            
+            <div class="form-group" id="parent-email-group" style="display: block;">
+                <label for="parent_email">Parent Email <span class="required">*</span></label>
+                <input type="email" id="parent_email" name="parent_email" placeholder="parent@example.com" required>
+                <small>Required for students - parent's email address</small>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block">Create User</button>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary btn-block">Cancel</a>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleParentEmail() {
+    const role = document.getElementById('role').value;
+    const parentGroup = document.getElementById('parent-email-group');
+    const parentInput = document.getElementById('parent_email');
+    
+    if (role === 'student') {
+        parentGroup.style.display = 'block';
+        parentInput.required = true;
+    } else {
+        parentGroup.style.display = 'none';
+        parentInput.required = false;
+        parentInput.value = '';
+    }
+}
+</script>
+{% endblock %}

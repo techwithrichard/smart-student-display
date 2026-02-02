@@ -7,6 +7,9 @@
     <div class="admin-header">
         <h1>Admin Dashboard</h1>
         <p class="admin-subtitle">Manage users, classrooms, and projects</p>
+        <div class="admin-actions">
+            <a href="{{ url_for('admin_add_user') }}" class="btn btn-primary">Add New User</a>
+        </div>
     </div>
     
     <div class="stats-grid">
@@ -21,6 +24,10 @@
         <div class="stat-card">
             <h3>{{ stats.total_teachers }}</h3>
             <p>Teachers</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ stats.total_staff|default(0) }}</h3>
+            <p>Staff</p>
         </div>
         <div class="stat-card">
             <h3>{{ stats.total_classrooms }}</h3>
@@ -56,6 +63,9 @@
                             <td><span class="role-badge role-{{ user.role }}">{{ user.role }}</span></td>
                             <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
                             <td>
+                                {% if user.role != 'admin' or user.id == current_user.id %}
+                                    <a href="{{ url_for('admin_edit_user', user_id=user.id) }}" class="btn btn-small">Edit</a>
+                                {% endif %}
                                 {% if user.role != 'admin' %}
                                     <form method="POST" action="{{ url_for('toggle_user_role', user_id=user.id) }}" style="display: inline;">
                                         <button type="submit" class="btn btn-small">Toggle Role</button>

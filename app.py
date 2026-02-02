@@ -45,8 +45,8 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(20), default='student')  # student, teacher, or admin
-    parent_email = db.Column(db.String(120), nullable=True)  # Parent email for students
+    role = db.Column(db.String(20), default='student')  # student, teacher, staff, or admin
+    parent_email = db.Column(db.String(120), nullable=True)  # Parent email for students (required for students)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     classrooms = db.relationship('Classroom', backref='teacher', lazy=True)
     projects = db.relationship('Project', foreign_keys='Project.student_id', backref='student', lazy=True)
@@ -295,7 +295,7 @@ def dashboard():
 @app.route('/classroom/create', methods=['GET', 'POST'])
 @login_required
 def create_classroom():
-    if current_user.role != 'teacher':
+    if current_user.role not in ['teacher', 'admin']:
         flash('Only teachers can create classrooms')
         return redirect(url_for('dashboard'))
     
@@ -379,8 +379,8 @@ def classroom_view(classroom_id):
 @app.route('/project/upload', methods=['GET', 'POST'])
 @login_required
 def upload_project():
-    if current_user.role == 'teacher':
-        flash('Teachers cannot upload projects')
+    if current_user.role in ['teacher', 'staff', 'admin']:
+        flash('Teachers and staff cannot upload projects')
         return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
@@ -631,7 +631,7 @@ def check_project_access(project):
     if project.visibility == 'private':
         return False
     if project.visibility == 'classroom':
-        if current_user.role == 'teacher':
+        if current_user.role in ['teacher', 'staff']:
             return project.classroom.teacher_id == current_user.id
         enrollment = ClassroomStudent.query.filter_by(
             classroom_id=project.classroom_id,
@@ -639,7 +639,7 @@ def check_project_access(project):
         ).first()
         return enrollment is not None
     if project.visibility == 'parents':
-        if current_user.role == 'teacher':
+        if current_user.role in ['teacher', 'staff']:
             return project.classroom.teacher_id == current_user.id or project.tagged_teacher_id == current_user.id
         return False
     return False
@@ -655,7 +655,7 @@ def like_project(project_id):
 @app.route('/challenge/create', methods=['GET', 'POST'])
 @login_required
 def create_challenge():
-    if current_user.role != 'teacher':
+    if current_user.role not in ['teacher', 'admin']:
         flash('Only teachers can create challenges')
         return redirect(url_for('dashboard'))
     
@@ -741,6 +741,7 @@ def admin_dashboard():
         'total_users': User.query.count(),
         'total_students': User.query.filter_by(role='student').count(),
         'total_teachers': User.query.filter_by(role='teacher').count(),
+        'total_staff': User.query.filter_by(role='staff').count(),
         'total_classrooms': Classroom.query.count(),
         'total_projects': Project.query.count()
     }
@@ -765,10 +766,95 @@ def toggle_user_role(user_id):
     if user.role == 'admin':
         flash('Cannot modify admin user')
         return redirect(url_for('admin_dashboard'))
+    # Toggle between student and teacher
     user.role = 'teacher' if user.role == 'student' else 'student'
     db.session.commit()
     flash(f'User {user.username} role updated to {user.role}')
     return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/add-user', methods=['GET', 'POST'])
+@admin_required
+def admin_add_user():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        role = request.form.get('role', 'student')
+        parent_email = request.form.get('parent_email', '').strip() if role == 'student' else None
+        
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists')
+            return redirect(url_for('admin_add_user'))
+        
+        if User.query.filter_by(email=email).first():
+            flash('Email already exists')
+            return redirect(url_for('admin_add_user'))
+        
+        # Parent email is required for students
+        if role == 'student' and not parent_email:
+            flash('Parent email is required for students')
+            return redirect(url_for('admin_add_user'))
+        
+        user = User(
+            username=username,
+            email=email,
+            password_hash=generate_password_hash(password),
+            role=role,
+            parent_email=parent_email if parent_email else None
+        )
+        db.session.add(user)
+        db.session.commit()
+        flash(f'User {username} ({role}) created successfully!')
+        return redirect(url_for('admin_dashboard'))
+    
+    return render_template('admin_add_user.html')
+
+@app.route('/admin/user/<int:user_id>/edit', methods=['GET', 'POST'])
+@admin_required
+def admin_edit_user(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.role == 'admin' and user.id != current_user.id:
+        flash('Cannot edit other admin users')
+        return redirect(url_for('admin_dashboard'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        role = request.form.get('role')
+        parent_email = request.form.get('parent_email', '').strip() if role == 'student' else None
+        
+        # Check username uniqueness (except current user)
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user and existing_user.id != user.id:
+            flash('Username already exists')
+            return redirect(url_for('admin_edit_user', user_id=user_id))
+        
+        # Check email uniqueness (except current user)
+        existing_email = User.query.filter_by(email=email).first()
+        if existing_email and existing_email.id != user.id:
+            flash('Email already exists')
+            return redirect(url_for('admin_edit_user', user_id=user_id))
+        
+        # Parent email required for students
+        if role == 'student' and not parent_email:
+            flash('Parent email is required for students')
+            return redirect(url_for('admin_edit_user', user_id=user_id))
+        
+        # Update password if provided
+        new_password = request.form.get('password', '').strip()
+        if new_password:
+            user.password_hash = generate_password_hash(new_password)
+        
+        user.username = username
+        user.email = email
+        user.role = role
+        user.parent_email = parent_email if parent_email else None
+        
+        db.session.commit()
+        flash(f'User {username} updated successfully!')
+        return redirect(url_for('admin_dashboard'))
+    
+    return render_template('admin_edit_user.html', user=user)
 
 # Project permissions and settings
 @app.route('/project/<int:project_id>/settings', methods=['GET', 'POST'])
