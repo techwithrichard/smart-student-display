@@ -1,16 +1,19 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
+from functools import wraps
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-change-in-production'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///student_projects.db'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///student_projects.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+ALLOWED_EXTENSIONS = {'html'}
 
 db = SQLAlchemy(app)
 login_manager = LoginManager()
@@ -84,6 +87,30 @@ class ChallengeSubmission(db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+# Helper functions
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def teacher_required(f):
+    @wraps(f)
+    @login_required
+    def decorated_function(*args, **kwargs):
+        if current_user.role != 'teacher':
+            flash('Access denied. Teacher privileges required.')
+            return redirect(url_for('dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def student_required(f):
+    @wraps(f)
+    @login_required
+    def decorated_function(*args, **kwargs):
+        if current_user.role != 'student':
+            flash('Access denied. Student privileges required.')
+            return redirect(url_for('dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Routes
 @app.route('/')
@@ -280,11 +307,14 @@ def upload_project():
                 flash('No file selected')
                 return redirect(url_for('upload_project'))
             
-            if file and file.filename.endswith('.html'):
+            if file and allowed_file(file.filename):
                 filename = secure_filename(f"{current_user.id}_{datetime.now().timestamp()}_{file.filename}")
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(filepath)
                 project.file_path = filename
+            else:
+                flash('Invalid file type. Only HTML files are allowed.')
+                return redirect(url_for('upload_project'))
         
         elif project_type == 'scratch':
             scratch_link = request.form.get('scratch_link')
@@ -413,7 +443,23 @@ def submit_challenge(challenge_id):
     flash(f'Challenge submitted! You earned {challenge.points} points!')
     return redirect(url_for('classroom_view', classroom_id=challenge.classroom_id))
 
+# Error handlers
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('error.html', error_code=404, error_message='Page not found'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return render_template('error.html', error_code=500, error_message='Internal server error'), 500
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    return render_template('error.html', error_code=413, error_message='File too large. Maximum size is 16MB.'), 413
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+        print("Database initialized successfully")
+        print("Starting server on http://127.0.0.1:5000")
+    app.run(debug=True, host='127.0.0.1', port=5000)
