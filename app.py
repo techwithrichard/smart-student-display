@@ -48,6 +48,7 @@ class ClassroomStudent(db.Model):
     student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     joined_at = db.Column(db.DateTime, default=datetime.utcnow)
     points = db.Column(db.Integer, default=0)
+    student = db.relationship('User', backref='enrollments')
     db.UniqueConstraint('classroom_id', 'student_id')
 
 class Project(db.Model):
