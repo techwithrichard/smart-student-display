@@ -86,14 +86,37 @@
         </div>
         
         <div class="admin-section">
-            <h2>Classrooms</h2>
-            <div class="classrooms-list">
-                {% for classroom in classrooms %}
-                    <div class="classroom-item">
-                        <h3>{{ classroom.name }}</h3>
-                        <p>Code: {{ classroom.code }} | Teacher: {{ classroom.teacher.username }} | Students: {{ classroom.students|length }}</p>
-                    </div>
-                {% endfor %}
+            <h2>Classrooms <a href="{{ url_for('create_classroom') }}" class="btn btn-small btn-primary">Create Classroom</a></h2>
+            <div class="table-container">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Code</th>
+                            <th>Teacher</th>
+                            <th>Students</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for classroom in classrooms %}
+                            <tr>
+                                <td>{{ classroom.id }}</td>
+                                <td>{{ classroom.name }}</td>
+                                <td><code>{{ classroom.code }}</code></td>
+                                <td>{{ classroom.teacher.username }}</td>
+                                <td>{{ classroom.students|length }}</td>
+                                <td>{{ classroom.created_at.strftime('%Y-%m-%d') }}</td>
+                                <td>
+                                    <a href="{{ url_for('classroom_view', classroom_id=classroom.id) }}" class="btn btn-small">View</a>
+                                    <a href="{{ url_for('add_student_to_classroom', classroom_id=classroom.id) }}" class="btn btn-small">Add Student</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
         

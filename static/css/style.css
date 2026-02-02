@@ -1396,6 +1396,56 @@ body {
     font-weight: bold;
 }
 
+.students-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    margin-bottom: 1.5rem;
+}
+
+.students-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.student-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.student-item:last-child {
+    border-bottom: none;
+}
+
+.student-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.student-name {
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.student-points {
+    font-size: 0.85rem;
+    color: var(--text-light);
+}
+
+.classroom-info {
+    color: var(--text-light);
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: var(--light-bg);
+    border-radius: 5px;
+}
+
 @media (max-width: 768px) {
     .stats-grid {
         grid-template-columns: 1fr;

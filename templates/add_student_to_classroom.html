@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Add Student to {{ classroom.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="form-container">
+        <h1>Add Student to {{ classroom.name }}</h1>
+        <p class="classroom-info">Classroom Code: <strong>{{ classroom.code }}</strong></p>
+        
+        {% if students %}
+            <form method="POST" action="{{ url_for('add_student_to_classroom', classroom_id=classroom.id) }}">
+                <div class="form-group">
+                    <label for="student_id">Select Student <span class="required">*</span></label>
+                    <select id="student_id" name="student_id" required>
+                        <option value="">Choose a student...</option>
+                        {% for student in students %}
+                            <option value="{{ student.id }}">{{ student.username }} ({{ student.email }}){% if student.parent_email %} - Parent: {{ student.parent_email }}{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                    <small>Select a student to add to this classroom</small>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-block">Add Student</button>
+                <a href="{{ url_for('classroom_view', classroom_id=classroom.id) }}" class="btn btn-secondary btn-block">Cancel</a>
+            </form>
+        {% else %}
+            <div class="empty-state">
+                <p>All students are already enrolled in this classroom.</p>
+                <a href="{{ url_for('classroom_view', classroom_id=classroom.id) }}" class="btn btn-secondary">Back to Classroom</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

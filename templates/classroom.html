@@ -82,6 +82,34 @@
         </div>
         
         <div class="classroom-sidebar">
+            {% if current_user.role in ['teacher', 'admin'] or (current_user.role == 'staff' and classroom.teacher_id == current_user.id) %}
+                <div class="students-card">
+                    <div class="section-header">
+                        <h2>Students</h2>
+                        <a href="{{ url_for('add_student_to_classroom', classroom_id=classroom.id) }}" class="btn btn-small btn-primary">Add Student</a>
+                    </div>
+                    {% if classroom.students %}
+                        <ul class="students-list">
+                            {% for enrollment in classroom.students %}
+                                <li class="student-item">
+                                    <div class="student-info">
+                                        <span class="student-name">{{ enrollment.student.username }}</span>
+                                        <span class="student-points">{{ enrollment.points }} pts</span>
+                                    </div>
+                                    {% if current_user.role in ['teacher', 'admin'] or (current_user.role == 'staff' and classroom.teacher_id == current_user.id) %}
+                                        <form method="POST" action="{{ url_for('remove_student_from_classroom', classroom_id=classroom.id, student_id=enrollment.student.id) }}" style="display: inline;" onsubmit="return confirm('Remove {{ enrollment.student.username }} from this classroom?')">
+                                            <button type="submit" class="btn btn-small btn-danger">Remove</button>
+                                        </form>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="empty-state">No students enrolled yet</p>
+                    {% endif %}
+                </div>
+            {% endif %}
+            
             <div class="leaderboard-card">
                 <h2>Leaderboard</h2>
                 {% if leaderboard %}

@@ -313,57 +313,101 @@ def dashboard():
         return render_template('student_dashboard.html', classrooms=classrooms, projects=projects)
 
 @app.route('/classroom/create', methods=['GET', 'POST'])
-@login_required
+@admin_required
 def create_classroom():
-    if current_user.role not in ['teacher', 'admin']:
-        flash('Only teachers can create classrooms')
-        return redirect(url_for('dashboard'))
-    
     if request.method == 'POST':
         name = request.form.get('name')
         code = request.form.get('code')
+        teacher_id = request.form.get('teacher_id')
+        
+        if not teacher_id:
+            flash('Please select a teacher for this classroom')
+            return redirect(url_for('create_classroom'))
+        
+        teacher = User.query.get(teacher_id)
+        if not teacher or teacher.role != 'teacher':
+            flash('Invalid teacher selected')
+            return redirect(url_for('create_classroom'))
         
         if Classroom.query.filter_by(code=code).first():
             flash('Classroom code already exists')
             return redirect(url_for('create_classroom'))
         
-        classroom = Classroom(name=name, code=code, teacher_id=current_user.id)
+        classroom = Classroom(name=name, code=code, teacher_id=teacher_id)
         db.session.add(classroom)
         db.session.commit()
         flash('Classroom created successfully!')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('admin_dashboard'))
     
-    return render_template('create_classroom.html')
+    teachers = User.query.filter_by(role='teacher').all()
+    return render_template('create_classroom.html', teachers=teachers)
 
-@app.route('/classroom/join', methods=['POST'])
+# Admin/Teacher route to add student to classroom
+@app.route('/classroom/<int:classroom_id>/add-student', methods=['GET', 'POST'])
 @login_required
-def join_classroom():
-    if current_user.role in ['teacher', 'staff', 'admin']:
-        flash('Teachers and staff cannot join classrooms')
+def add_student_to_classroom(classroom_id):
+    classroom = Classroom.query.get_or_404(classroom_id)
+    
+    # Only admin or the classroom teacher can add students
+    if current_user.role != 'admin' and classroom.teacher_id != current_user.id:
+        flash('You do not have permission to add students to this classroom')
         return redirect(url_for('dashboard'))
     
-    code = request.form.get('code')
-    classroom = Classroom.query.filter_by(code=code).first()
+    if request.method == 'POST':
+        student_id = request.form.get('student_id')
+        if not student_id:
+            flash('Please select a student')
+            return redirect(url_for('add_student_to_classroom', classroom_id=classroom_id))
+        
+        student = User.query.get(student_id)
+        if not student or student.role != 'student':
+            flash('Invalid student selected')
+            return redirect(url_for('add_student_to_classroom', classroom_id=classroom_id))
+        
+        # Check if already enrolled
+        existing = ClassroomStudent.query.filter_by(
+            classroom_id=classroom_id,
+            student_id=student_id
+        ).first()
+        
+        if existing:
+            flash(f'{student.username} is already in this classroom')
+            return redirect(url_for('add_student_to_classroom', classroom_id=classroom_id))
+        
+        enrollment = ClassroomStudent(classroom_id=classroom_id, student_id=student_id)
+        db.session.add(enrollment)
+        db.session.commit()
+        flash(f'Student {student.username} added to classroom successfully!')
+        return redirect(url_for('classroom_view', classroom_id=classroom_id))
     
-    if not classroom:
-        flash('Invalid classroom code')
+    # Get all students not yet in this classroom
+    enrolled_student_ids = [e.student_id for e in ClassroomStudent.query.filter_by(classroom_id=classroom_id).all()]
+    all_students = User.query.filter_by(role='student').all()
+    available_students = [s for s in all_students if s.id not in enrolled_student_ids]
+    
+    return render_template('add_student_to_classroom.html', classroom=classroom, students=available_students)
+
+# Remove student from classroom
+@app.route('/classroom/<int:classroom_id>/remove-student/<int:student_id>', methods=['POST'])
+@login_required
+def remove_student_from_classroom(classroom_id, student_id):
+    classroom = Classroom.query.get_or_404(classroom_id)
+    
+    # Only admin or the classroom teacher can remove students
+    if current_user.role != 'admin' and classroom.teacher_id != current_user.id:
+        flash('You do not have permission to remove students from this classroom')
         return redirect(url_for('dashboard'))
     
-    # Check if already enrolled
-    existing = ClassroomStudent.query.filter_by(
-        classroom_id=classroom.id,
-        student_id=current_user.id
-    ).first()
+    enrollment = ClassroomStudent.query.filter_by(
+        classroom_id=classroom_id,
+        student_id=student_id
+    ).first_or_404()
     
-    if existing:
-        flash('You are already in this classroom')
-        return redirect(url_for('dashboard'))
-    
-    enrollment = ClassroomStudent(classroom_id=classroom.id, student_id=current_user.id)
-    db.session.add(enrollment)
+    student = User.query.get(student_id)
+    db.session.delete(enrollment)
     db.session.commit()
-    flash(f'Joined classroom: {classroom.name}')
-    return redirect(url_for('classroom_view', classroom_id=classroom.id))
+    flash(f'Student {student.username} removed from classroom')
+    return redirect(url_for('classroom_view', classroom_id=classroom_id))
 
 @app.route('/classroom/<int:classroom_id>')
 @login_required

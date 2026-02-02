@@ -15,11 +15,22 @@
             <div class="form-group">
                 <label for="code">Classroom Code</label>
                 <input type="text" id="code" name="code" required maxlength="10" placeholder="e.g., CS101">
-                <small>This code will be used by students to join your classroom</small>
+                <small>Unique code to identify this classroom</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="teacher_id">Assign Teacher <span class="required">*</span></label>
+                <select id="teacher_id" name="teacher_id" required>
+                    <option value="">Select a teacher</option>
+                    {% for teacher in teachers %}
+                        <option value="{{ teacher.id }}">{{ teacher.username }} ({{ teacher.email }})</option>
+                    {% endfor %}
+                </select>
+                <small>Select the teacher who will manage this classroom</small>
             </div>
             
             <button type="submit" class="btn btn-primary btn-block">Create Classroom</button>
-            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-block">Cancel</a>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary btn-block">Cancel</a>
         </form>
     </div>
 </div>
